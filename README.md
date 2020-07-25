@@ -1,8 +1,8 @@
 # i3 Notification Manager
 
-This is a notification manager inspired by 
-[Rofication](https://github.com/DaveDavenport/Rofication) for i3 desktop 
-environment. As Rofication, it implements Galago standard. 
+This is a notification manager for i3 desktop environment inspired by 
+[Rofication](https://github.com/DaveDavenport/Rofication). Like 
+Rofication, it implements the Galago standard. 
 
 ## Differences from Rofication
 
@@ -10,7 +10,8 @@ environment. As Rofication, it implements Galago standard.
   by, for example, the application that is sending the notification and 
   the subject. This is highly configurable. (No docs at the moment, but 
   see the bin/i3-notifier and how it configures to match a number 
-  different notification categories by new classes that inherit Config)
+  different notification categories by new classes that inherit Config; 
+  also see the comments in i3notifier/config.py)
 - Allows bulk delete of notifications in a category.
 - Implements "default" action.
 - Shows icons.

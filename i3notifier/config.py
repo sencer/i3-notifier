@@ -1,20 +1,23 @@
 class Config:
     def should_apply(notification):
+        # To group notifications and apply certain formatting inherit this
+        # class and make sure should_apply(notification) is the first Config
+        # that returns True to those notifications.
         return True
 
-    def get_key(notification):
-        return notification.app_name or "_"
-
     def get_keys(notification):
+        # Returns a tuple, each element of which corresponds to the group
+        # name that the notification should be assigned at the
+        # corresponding nesting level.
         return (notification.app_name or "_",)
 
     def update_notification(notification):
+        # Edit the notification before saving it. By default no edits are
+        # made.
         return notification
 
-    def sort_fn(notification):
-        return lambda ns: sorted(ns, key=lambda x: x.created_at)
-
     def format_notification(notification):
+        # Format the notification
         text = f"<b>{notification.summary}</b> "
         text += f"<small>{notification.app_name}</small>"
 
