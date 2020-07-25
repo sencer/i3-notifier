@@ -20,6 +20,12 @@ Rofication, it implements the Galago standard.
 - Code is modular, should be straight forward to use another GUI rather 
   than Rofi; or another data structure rather than tree structure.
 
+## Grouping in action
+
+![top level](/images/1.png)
+![level 1](/images/2.png)
+![level 2](/images/3.png)
+
 ## Usage
 
     # To install (also see the requirements.txt)
@@ -27,6 +33,10 @@ Rofication, it implements the Galago standard.
 
     # To launch GUI
     dbus-send --session --print-reply --dest=org.freedesktop.Notifications /org/freedesktop/Notifications org.freedesktop.Notifications.ShowNotifications
+
+    # Enter to expand group / execute action
+    # Ctrl + Delete to delete
+    # Esc to exit
 
     # To get notification count
     dbus-send --session --print-reply=literal --dest=org.freedesktop.Notifications /org/freedesktop/Notifications org.freedesktop.Notifications.ShowNotificationCount
