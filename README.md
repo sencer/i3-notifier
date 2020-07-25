@@ -22,8 +22,13 @@ Rofication, it implements the Galago standard.
 
 ## Grouping in action
 
+### Top Level
 ![top level](/images/1.png)
+
+### Expand Whatsapp
 ![level 1](/images/2.png)
+
+### Expand Person1
 ![level 2](/images/3.png)
 
 ## Usage
