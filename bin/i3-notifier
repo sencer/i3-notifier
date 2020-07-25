@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+import daemon
+from i3notifier.config import Config
+from i3notifier.data_manager import DataManager
+from i3notifier.i3 import I3
+from i3notifier.notification_fetcher import NotificationFetcher
+from i3notifier.rofi_gui import RofiGUI
+
+
+def chromeapp_class(title, url, icon=None):
+    kChrome = "Google Chrome"
+    kURL = f'<a href="https://{url}/">{url}</a>'
+    lURL = len(kURL)
+    icon = icon or "chrome"
+
+    class ChromeApp(Config):
+        def should_apply(notification):
+            return (
+                notification.body.startswith(kURL) and notification.app_name == kChrome
+            )
+
+        def update_notification(notification):
+            notification.body = notification.body[lURL:].strip()
+            notification.app_name = title
+            notification.app_icon = icon
+
+        def get_keys(notification):
+            return title, str(notification.summary)
+
+    return ChromeApp
+
+
+if __name__ == "__main__":
+
+    with daemon.DaemonContext():
+        import dbus.mainloop.glib
+        from gi.repository import GLib
+
+        dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+
+        data_manager = DataManager(
+            [
+                chromeapp_class("WhatsApp", "web.whatsapp.com", "web-whatsapp"),
+                chromeapp_class("Gmail", "mail.google.com", "gmail"),
+                chromeapp_class("Chat", "chat.google.com"),
+                chromeapp_class("Meet", "meet.google.com", "meet",),
+            ]
+        )
+        gui = RofiGUI()
+        i3 = I3()
+        fetcher = NotificationFetcher(data_manager, gui, i3)
+
+        try:
+            GLib.MainLoop().run()
+        except:
+            print("Exiting...")
