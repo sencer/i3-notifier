@@ -1,6 +1,5 @@
 import os.path
 import time
-from typing import Dict, List
 
 import dbus
 import dbus.service
@@ -37,15 +36,15 @@ class NotificationFetcher(dbus.service.Object):
     @dbus.service.method(DBUS_PATH, in_signature="susssasa{ss}i", out_signature="u")
     def Notify(
         self,
-        app_name: str,
-        replaces_id: int,
-        app_icon: str,
-        summary: str,
-        body: str,
-        actions: List[str],
-        hints: Dict[str, str],
-        expire_timeout: int,
-    ) -> int:
+        app_name,
+        replaces_id,
+        app_icon,
+        summary,
+        body,
+        actions,
+        hints,
+        expire_timeout,
+    ):
 
         if replaces_id > 0:
             id = replaces_id
@@ -78,13 +77,13 @@ class NotificationFetcher(dbus.service.Object):
             notification.expire_at = notification.created_at + expire_timeout
 
         if "urgency" in hints:
-            notification.urgency = int(hints["urgency"])
+            notification.urgency = int(hints["urgency"]) if isinstance(hints["urgency"], str) else hints["urgency"].real
 
         self.dm.add_notification(notification)
         return id
 
     @dbus.service.method(DBUS_PATH, in_signature="", out_signature="as")
-    def GetCapabilities(self) -> List[str]:
+    def GetCapabilities(self):
         return [
             "actions",
             "body",
@@ -100,9 +99,9 @@ class NotificationFetcher(dbus.service.Object):
         self._update_context()
         self.NotificationClosed(id, 3)
 
-    @dbus.service.method(DBUS_PATH, in_signature="", out_signature="sss")
+    @dbus.service.method(DBUS_PATH, in_signature="", out_signature="ssss")
     def GetServerInformation(self):
-        return "notification_fetcher", "github.com/sencer", "0.0.0"
+        return "notification_fetcher", "github.com/sencer", "0.0.0", "1"
 
     def _update_context(self):
         new_context = []
