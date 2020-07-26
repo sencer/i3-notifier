@@ -8,8 +8,9 @@ class I3:
     def process_action(self, action):
         def switch_to_urgent(i3, data):
             i3.command(f"workspace {data.current.name}")
+            i3.main_quit()
             i3.off(switch_to_urgent)
 
         self.i3.on(Event.WORKSPACE_URGENT, switch_to_urgent)
         action()
-        self.i3.main(0.5)
+        self.i3.main(1)
