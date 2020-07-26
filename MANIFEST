@@ -7,5 +7,6 @@ i3notifier/i3.py
 i3notifier/notification.py
 i3notifier/notification_fetcher.py
 i3notifier/rofi_gui.py
+i3notifier/utils.py
 tests/test_data_manager.py
 tests/test_notification.py

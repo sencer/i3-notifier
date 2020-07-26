@@ -1,3 +1,6 @@
+from .utils import strip_tags
+
+
 class Config:
     def should_apply(notification):
         # To group notifications and apply certain formatting inherit this
@@ -22,11 +25,15 @@ class Config:
 
     def format_notification(notification):
         # Format the notification
-        text = f"<b>{notification.summary}</b> "
+        text = f"<b>{strip_tags(notification.summary)}</b> "
         text += f"<small>{notification.app_name}</small>"
 
         if notification.body:
-            text += "\n<i>" + notification.body.replace(r"\n", "").strip() + "</i>"
+            text += (
+                "\n<i>"
+                + strip_tags(notification.body.replace(r"\n", "").strip())
+                + "</i>"
+            )
 
         if notification.app_icon:
             return (

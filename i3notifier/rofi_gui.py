@@ -1,7 +1,6 @@
+import copy
 import subprocess
 from enum import Enum
-
-from .utils import strip_tags
 
 
 class Operation(Enum):
@@ -45,7 +44,7 @@ class RofiGUI:
     def show_notifications(self, notifications):
 
         formatted_notifications = [
-            strip_tags(notification.formatted()) for notification in notifications
+            notification.formatted() for notification in notifications
         ]
 
         proc = subprocess.Popen(
