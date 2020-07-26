@@ -5,6 +5,10 @@ class Config:
         # that returns True to those notifications.
         return True
 
+    def closeable(notification):
+        # It is better to ignore the close request for some notifications
+        return True
+
     def get_keys(notification):
         # Returns a tuple, each element of which corresponds to the group
         # name that the notification should be assigned at the

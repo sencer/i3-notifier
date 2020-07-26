@@ -30,6 +30,8 @@ class NotificationFetcher(dbus.service.Object):
         self.dm = dm
         self.gui = gui
         self.desktop = desktop
+        self.context = []
+
         name = dbus.service.BusName(DBUS_PATH, dbus.SessionBus())
         super().__init__(name, "/org/freedesktop/Notifications")
 
@@ -45,6 +47,16 @@ class NotificationFetcher(dbus.service.Object):
         hints,
         expire_timeout,
     ):
+        # print(
+        #     f'app_name:"{app_name}" '
+        #     f'replaces_id:"{replaces_id}" '
+        #     f'app_icon:"{app_icon}" '
+        #     f'summary:"{summary}"'
+        #     f'body:"{body}"'
+        #     f'actions:"{actions}"'
+        #     f'hints:"{hints}"'
+        #     f'expire_timeout:"{expire_timeout}"'
+        # )
 
         if replaces_id > 0:
             id = replaces_id
@@ -77,7 +89,11 @@ class NotificationFetcher(dbus.service.Object):
             notification.expire_at = notification.created_at + expire_timeout
 
         if "urgency" in hints:
-            notification.urgency = int(hints["urgency"]) if isinstance(hints["urgency"], str) else hints["urgency"].real
+            notification.urgency = (
+                int(hints["urgency"])
+                if isinstance(hints["urgency"], str)
+                else hints["urgency"].real
+            )
 
         self.dm.add_notification(notification)
         return id
@@ -95,9 +111,12 @@ class NotificationFetcher(dbus.service.Object):
 
     @dbus.service.method(DBUS_PATH, in_signature="u", out_signature="")
     def CloseNotification(self, id):
-        self.dm.remove_notification(id)
-        self._update_context()
-        self.NotificationClosed(id, 3)
+        notification = self.dm.get_context_by_id(id).notifications[id]
+
+        if notification.closeable():
+            self.dm.remove_notification(id)
+            self._update_context()
+            self.NotificationClosed(id, 3)
 
     @dbus.service.method(DBUS_PATH, in_signature="", out_signature="ssss")
     def GetServerInformation(self):
@@ -128,6 +147,9 @@ class NotificationFetcher(dbus.service.Object):
                 self.context.pop()
                 self._show_notifications()
                 return
+
+        if selected is None:
+            return
 
         key, notification = items[selected]
 

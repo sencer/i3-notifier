@@ -42,6 +42,9 @@ class Notification:
     def keys(self):
         return self.config.get_keys(self)
 
+    def closeable(self):
+        return self.config.closeable(self)
+
     def __len__(self):
         return 1
 
@@ -50,6 +53,12 @@ class Notification:
 
     def leafs(self):
         return [self]
+
+    def __repr__(self):
+        return f"{self.app_name} {self.summary} {self.created_at} {self.urgency}"
+
+    def __str__(self):
+        return self.__repr__()
 
 
 class NotificationCluster:

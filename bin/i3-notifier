@@ -7,7 +7,7 @@ from i3notifier.notification_fetcher import NotificationFetcher
 from i3notifier.rofi_gui import RofiGUI
 
 
-def chromeapp_class(title, url, icon=None):
+def chromeapp_class(title, url, icon=None, make_closeable=True):
     kChrome = "Google Chrome"
     kURL = f'<a href="https://{url}/">{url}</a>'
     lURL = len(kURL)
@@ -23,6 +23,9 @@ def chromeapp_class(title, url, icon=None):
             notification.body = notification.body[lURL:].strip()
             notification.app_name = title
             notification.app_icon = icon
+
+        def closeable(notification):
+            return make_closeable
 
         def get_keys(notification):
             return title, str(notification.summary)
@@ -40,10 +43,10 @@ if __name__ == "__main__":
 
         data_manager = DataManager(
             [
-                chromeapp_class("WhatsApp", "web.whatsapp.com", "web-whatsapp"),
-                chromeapp_class("Gmail", "mail.google.com", "gmail"),
-                chromeapp_class("Chat", "chat.google.com"),
-                chromeapp_class("Meet", "meet.google.com", "meet",),
+                chromeapp_class("WhatsApp", "web.whatsapp.com", "web-whatsapp", False),
+                chromeapp_class("Gmail", "mail.google.com", "gmail", False),
+                chromeapp_class("Chat", "chat.google.com", "chat", False),
+                chromeapp_class("Meet", "meet.google.com", "meet", False),
             ]
         )
         gui = RofiGUI()
