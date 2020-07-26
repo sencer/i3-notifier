@@ -9,9 +9,8 @@ Rofication, it implements the Galago standard.
 - Notifications are stored in a tree structure, where they can be grouped 
   by, for example, the application that is sending the notification and 
   the subject. This is highly configurable. (No docs at the moment, but 
-  see the bin/i3-notifier and how it configures to match a number 
-  different notification categories by new classes that inherit Config; 
-  also see the comments in i3notifier/config.py)
+  see the `examples/i3_notifier_config.py`; also see the comments in 
+  `i3notifier/config.py`)
 - Allows bulk delete of notifications in a category.
 - Implements "default" action.
 - Shows icons.
