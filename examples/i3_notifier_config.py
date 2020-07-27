@@ -1,5 +1,6 @@
 from i3notifier.config import Config
 
+
 def chromeapp_class(title, url, icon=None, make_closeable=True):
     kChrome = "Google Chrome"
     kURL = f'<a href="https://{url}/">{url}</a>'

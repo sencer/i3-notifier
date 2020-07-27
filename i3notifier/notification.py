@@ -23,7 +23,7 @@ class Notification:
         actions,
         created_at,
         expires_at=None,
-        urgency=None,
+        urgency=0,
     ):
         self.id = id
         self.app_name = app_name
@@ -84,15 +84,10 @@ class NotificationCluster:
     @property
     def urgency(self):
 
-        self._urgency = self._urgency or (
-            max(
-                notification.urgency or 0
-                for notification in self.notifications.values()
-            )
-            if self.notifications
-            else None
-        )
-        return self._urgency
+        if self._urgency is None and self.notifications:
+            self._urgency = self.last().urgency
+
+        return self._urgency or 0
 
     def formatted(self):
         if len(self) == 1:
@@ -132,14 +127,12 @@ class NotificationCluster:
         # This is called last for historical reasons, where I represented a cluster
         # by the last notification in it. Now urgency trumps creation time. So this
         # is kind of 'best' rather than 'last'
-        self._last = self._last or (
-            max(
+        if self._last is None and self.notifications:
+            self._last = max(
                 self.notifications.values(),
                 key=lambda x: (x.urgency, x.last().created_at),
             ).last()
-            if self.notifications
-            else None
-        )
+
         return self._last
 
     def __len__(self):
