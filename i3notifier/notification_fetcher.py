@@ -51,10 +51,13 @@ class NotificationFetcher(dbus.service.Object):
     def _show_notifications(self):
         notifications = self.dm.get_context(self.context).notifications
 
-        items = [
-            (k, v) if len(v) > 1 else (v.last().id, v.last())
-            for k, v in notifications.items()
-        ]
+        items = sorted(
+            [
+                (k, v) if len(v) > 1 else (v.last().id, v.last())
+                for k, v in notifications.items()
+            ],
+            key=lambda x: (-x[1].urgency, -x[1].last().created_at),
+        )
 
         selected, op = self.gui.show_notifications([item[1] for item in items])
 
