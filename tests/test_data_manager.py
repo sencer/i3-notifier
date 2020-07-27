@@ -23,7 +23,7 @@ class TestDataManager(unittest.TestCase):
             Notification(7, "A1", "icon", "1", "113", ["dflt"], 1595608250375722886, 1),
         ]
 
-        self.dm = DataManager([DummyConfig])
+        self.dm = DataManager([DummyConfig], "/dev/null")
         for notification in self.notifications:
             self.dm.add_notification(notification)
 
