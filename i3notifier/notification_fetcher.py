@@ -1,3 +1,4 @@
+import logging
 import os.path
 import time
 
@@ -11,6 +12,8 @@ from .notification import Notification
 from .rofi_gui import Operation
 
 DBUS_PATH = "org.freedesktop.Notifications"
+
+logger = logging.getLogger(__name__)
 
 
 def xdg_name_and_icon(app):
@@ -102,16 +105,17 @@ class NotificationFetcher(dbus.service.Object):
         hints,
         expire_timeout,
     ):
-        # print(
-        #     f'app_name:"{app_name}" '
-        #     f'replaces_id:"{replaces_id}" '
-        #     f'app_icon:"{app_icon}" '
-        #     f'summary:"{summary}"'
-        #     f'body:"{body}"'
-        #     f'actions:"{actions}"'
-        #     f'hints:"{hints}"'
-        #     f'expire_timeout:"{expire_timeout}"'
-        # )
+        logger.info(
+            "Received notification :\n"
+            f'app_name:"{app_name}" '
+            f"replaces_id:{replaces_id} "
+            f'app_icon:"{app_icon}" '
+            f'summary:"{summary}" '
+            f'body:"{body}" '
+            f'actions:"{actions}" '
+            f'hints:"{hints}" '
+            f"expire_timeout:{expire_timeout}"
+        )
 
         if replaces_id > 0:
             id = replaces_id
@@ -167,11 +171,17 @@ class NotificationFetcher(dbus.service.Object):
     @dbus.service.method(DBUS_PATH, in_signature="u", out_signature="")
     def CloseNotification(self, id):
         notification = self.dm.get_context_by_id(id).notifications[id]
+        logger.info(f"Received CloseNotification request for {notification}")
 
         if notification.closeable():
             self.dm.remove_notification(id)
             self._update_context()
             self.NotificationClosed(id, 3)
+        else:
+            logger.info(
+                " but notification is configured as non-closeable, "
+                "so it won't be automatically deleted from the view."
+            )
 
     @dbus.service.method(DBUS_PATH, in_signature="", out_signature="ssss")
     def GetServerInformation(self):
@@ -193,8 +203,8 @@ class NotificationFetcher(dbus.service.Object):
 
     @dbus.service.signal(DBUS_PATH, signature="uu")
     def NotificationClosed(self, id, reason):
-        print(f"Closed notification {id} due to {reason}")
+        logger.info(f"NotificationClosed signalled for {id} due to {reason}.")
 
     @dbus.service.signal(DBUS_PATH, signature="us")
     def ActionInvoked(self, id, action):
-        print(f"Action {action} on {id}")
+        logger.info(f"ActionInvoked with action {action} signalled for {id}.")

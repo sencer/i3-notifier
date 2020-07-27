@@ -68,7 +68,18 @@ class Notification:
         return [self]
 
     def __repr__(self):
-        return f"{self.app_name} {self.summary} {self.created_at} {self.urgency}"
+        return (
+            "<Notification: "
+            f"id:{self.id} "
+            f'app_name:"{self.app_name}" '
+            f'app_icon:"{self.app_icon}" '
+            f'summary:"{self.summary}" '
+            f'body:"{self.body}" '
+            f"actions:{self.actions} "
+            f"urgency:{self.urgency} "
+            f"created_at:{self.created_at} "
+            f"expires_at:{self.expires_at}>"
+        )
 
     def __str__(self):
         return self.__repr__()
