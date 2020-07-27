@@ -108,8 +108,10 @@ class NotificationCluster:
         self._last = None
 
     def add(self, key, notification):
-        self._urgency = max(self._urgency or 0, notification.urgency)
-        self._last = notification
+
+        if self._last is None or notification.urgency >= self.last().urgency:
+            self._last = notification
+        self._urgency = self.last().urgency
         self._len += 1
 
         if isinstance(key, int):
@@ -127,8 +129,14 @@ class NotificationCluster:
         del self.notifications[key]
 
     def last(self):
+        # This is called last for historical reasons, where I represented a cluster
+        # by the last notification in it. Now urgency trumps creation time. So this
+        # is kind of 'best' rather than 'last'
         self._last = self._last or (
-            max(self.notifications.values(), key=lambda x: x.last().created_at).last()
+            max(
+                self.notifications.values(),
+                key=lambda x: (x.urgency, x.last().created_at),
+            ).last()
             if self.notifications
             else None
         )
