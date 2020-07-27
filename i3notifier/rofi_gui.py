@@ -34,6 +34,8 @@ class RofiGUI:
         "-kb-custom-1",
         "Ctrl+Delete",
         "-show-icons",
+        "-columns",
+        "1",
     ]
 
     def __init__(self, *args, cmd=None):
