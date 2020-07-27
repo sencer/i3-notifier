@@ -42,7 +42,7 @@ class NotificationFetcher(dbus.service.Object):
         new_context = []
         p = self.dm.tree
         for key in self.context:
-            if key not in p.notifications:
+            if key not in p.notifications or len(p.notifications[key]) == 1:
                 break
             new_context.append(key)
             p = p.notifications[key]
@@ -69,14 +69,14 @@ class NotificationFetcher(dbus.service.Object):
 
         key, notification = items[selected]
 
-        do_action = isinstance(notification, Notification)
-        if do_action:
-            self.context = self.dm.map[notification.id]
-
         if op == Operation.SELECT:
-            if do_action and self.desktop:
+            if isinstance(notification, Notification):
+                self.context = self.dm.map[notification.id]
                 closure = lambda: self.ActionInvoked(key, "default")
-                self.desktop.process_action(closure)
+                if self.desktop:
+                    self.desktop.process_action(closure)
+                else:
+                    closure()
             else:
                 self.context.append(key)
                 self._show_notifications()
