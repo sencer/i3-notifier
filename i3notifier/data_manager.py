@@ -1,16 +1,26 @@
+import pickle
 import threading
 
 from .notification import Notification, NotificationCluster
 
 
 class DataManager(threading.Thread):
-    def __init__(self, configs):
-        self.lock = threading.Lock()
+    def __init__(self, configs, dump_path):
+        super().__init__()
+
         self.tree = NotificationCluster()
         self.map = dict()
-        self.configs = configs
 
-        super().__init__()
+        self.lock = threading.Lock()
+        self.configs = configs
+        self.dump_path = dump_path
+
+        try:
+            for notification in pickle.load(open(dump_path, "rb")):
+                self.add_notification(notification)
+        except:
+            pass
+
 
     def _recursive_add_notification(cluster, notification, keys, i=0):
         if i == len(keys):
@@ -95,3 +105,9 @@ class DataManager(threading.Thread):
             p = child
 
         return p
+
+    def dump(self):
+        pickle.dump(
+            [notification.strip() for notification in self.tree.leafs()],
+            open(self.dump_path, "wb"),
+        )

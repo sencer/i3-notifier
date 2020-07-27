@@ -45,6 +45,19 @@ class Notification:
     def closeable(self):
         return self.config.closeable(self)
 
+    def strip(self):
+        return Notification(
+            self.id,
+            self.app_name,
+            self.app_icon,
+            self.summary,
+            self.body,
+            self.actions,
+            self.created_at,
+            self.expires_at,
+            self.urgency,
+        )
+
     def __len__(self):
         return 1
 

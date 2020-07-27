@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 import importlib.util
 import os
+import signal
+import sys
+
+import dbus.mainloop.glib
 
 import daemon
+import daemon.pidfile
+from gi.repository import GLib
 from i3notifier.data_manager import DataManager
 from i3notifier.i3 import I3
 from i3notifier.notification_fetcher import NotificationFetcher
@@ -26,26 +32,42 @@ def get_user_config():
         return userconfig
 
 
-config_list = []
-userconfig = get_user_config()
-if userconfig is not None:
-    config_list = userconfig.config_list
+def run_daemon():
+    config_list = []
+    userconfig = get_user_config()
+    if userconfig is not None:
+        config_list = userconfig.config_list
 
+    dump_path = os.path.join("/tmp", os.environ["USER"], "i3-notifier.dump")
+    data_manager = DataManager(config_list, dump_path)
 
-if __name__ == "__main__":
+    gui = RofiGUI()
+    i3 = I3()
 
-    with daemon.DaemonContext():
-        import dbus.mainloop.glib
-        from gi.repository import GLib
+    def dump_and_exit(n, f):
+        data_manager.dump()
+        sys.exit(0)
 
+    pid_file = os.path.join("/tmp", os.environ["USER"], "i3-notifier.pid")
+
+    if os.path.exists(pid_file):
+        try:
+            os.kill(int(open(pid_file).read().strip()), 0)
+        except:
+            os.remove(pid_file)
+
+    with daemon.DaemonContext(
+        pidfile=daemon.pidfile.PIDLockFile(pid_file),
+        signal_map={signal.SIGTERM: dump_and_exit},
+    ):
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-
-        data_manager = DataManager(config_list)
-        gui = RofiGUI()
-        i3 = I3()
         fetcher = NotificationFetcher(data_manager, gui, i3)
 
         try:
             GLib.MainLoop().run()
         except:
-            print("Exiting...")
+            dump_and_exit(0, 0)
+
+
+if __name__ == "__main__":
+    run_daemon()

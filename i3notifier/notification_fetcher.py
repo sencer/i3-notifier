@@ -32,6 +32,9 @@ class NotificationFetcher(dbus.service.Object):
         self.desktop = desktop
         self.context = []
 
+        if len(self.dm.tree):
+            self._id = self.dm.tree.last().id + 1
+
         name = dbus.service.BusName(DBUS_PATH, dbus.SessionBus())
         super().__init__(name, "/org/freedesktop/Notifications")
 
@@ -182,6 +185,7 @@ class NotificationFetcher(dbus.service.Object):
 
     @dbus.service.method(DBUS_PATH, in_signature="", out_signature="s")
     def DumpNotifications(self):
+        self.dm.dump()
         return str(self.dm.tree)
 
     @dbus.service.signal(DBUS_PATH, signature="uu")
