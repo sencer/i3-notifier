@@ -42,7 +42,7 @@ class NotificationFetcher(dbus.service.Object):
         new_context = []
         p = self.dm.tree
         for key in self.context:
-            if key not in p.notifications or len(p.notifications[key]) == 1:
+            if key not in p.notifications:
                 break
             new_context.append(key)
             p = p.notifications[key]
