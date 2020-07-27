@@ -88,6 +88,10 @@ class DataManager(threading.Thread):
         with self.lock:
             if isinstance(id, int):
                 context = self.map.pop(id)
+            else:
+                for leaf in self.get_context(context).notifications[id].leafs():
+                    self.map.pop(leaf.id)
+
             DataManager._recursive_remove_notification(self.tree, [*context, id], i=0)
 
     def get_context_by_id(self, id):
