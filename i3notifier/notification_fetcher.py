@@ -181,7 +181,7 @@ class NotificationFetcher(dbus.service.Object):
 
     @dbus.service.method(DBUS_PATH, in_signature="", out_signature="uu")
     def ShowNotificationCount(self):
-        return len(self.dm.tree), self.dm.tree.urgency
+        return len(self.dm.tree), self.dm.tree.urgency or 0
 
     @dbus.service.method(DBUS_PATH, in_signature="", out_signature="s")
     def DumpNotifications(self):

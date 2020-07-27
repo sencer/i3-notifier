@@ -67,7 +67,7 @@ class DataManager(threading.Thread):
             urgency = cluster.urgency
             nremoved = len(cluster_to_delete)
         else:
-            nremoved, last = DataManager._recursive_remove_notification(
+            nremoved, last, urgency = DataManager._recursive_remove_notification(
                 cluster.notifications[key], keys, i + 1
             )
 
@@ -79,10 +79,10 @@ class DataManager(threading.Thread):
         if last is cluster._last:
             cluster._last = None
 
-        if urgency == cluster.urgency:
+        if urgency == cluster._urgency:
             cluster._urgency = None
 
-        return nremoved, last
+        return nremoved, last, urgency
 
     def remove_notification(self, id, context=()):
         with self.lock:

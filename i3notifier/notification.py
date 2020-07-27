@@ -84,8 +84,13 @@ class NotificationCluster:
     @property
     def urgency(self):
 
-        self._urgency = self._urgency or max(
-            notification.urgency or 0 for notification in self.notifications.values()
+        self._urgency = self._urgency or (
+            max(
+                notification.urgency or 0
+                for notification in self.notifications.values()
+            )
+            if self.notifications
+            else None
         )
         return self._urgency
 
@@ -122,11 +127,10 @@ class NotificationCluster:
         del self.notifications[key]
 
     def last(self):
-        self._last = (
-            self._last
-            or max(
-                self.notifications.values(), key=lambda x: x.last().created_at
-            ).last()
+        self._last = self._last or (
+            max(self.notifications.values(), key=lambda x: x.last().created_at).last()
+            if self.notifications
+            else None
         )
         return self._last
 
