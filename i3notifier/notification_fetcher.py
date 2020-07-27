@@ -38,6 +38,55 @@ class NotificationFetcher(dbus.service.Object):
         name = dbus.service.BusName(DBUS_PATH, dbus.SessionBus())
         super().__init__(name, "/org/freedesktop/Notifications")
 
+    def _update_context(self):
+        new_context = []
+        p = self.dm.tree
+        for key in self.context:
+            if key not in p.notifications:
+                break
+            new_context.append(key)
+            p = p.notifications[key]
+        self.context = new_context
+
+    def _show_notifications(self):
+        notifications = self.dm.get_context(self.context).notifications
+
+        items = [
+            (k, v) if len(v) > 1 else (v.last().id, v.last())
+            for k, v in notifications.items()
+        ]
+
+        selected, op = self.gui.show_notifications([item[1] for item in items])
+
+        if op == Operation.EXIT:
+            if self.context:
+                self.context.pop()
+                self._show_notifications()
+                return
+
+        if selected is None:
+            return
+
+        key, notification = items[selected]
+
+        do_action = isinstance(notification, Notification)
+        if do_action:
+            self.context = self.dm.map[notification.id]
+
+        if op == Operation.SELECT:
+            if do_action and self.desktop:
+                closure = lambda: self.ActionInvoked(key, "default")
+                self.desktop.process_action(closure)
+            else:
+                self.context.append(key)
+                self._show_notifications()
+        elif op == Operation.DELETE:
+            self.dm.remove_notification(key, self.context)
+            self._update_context()
+
+            if len(self.dm.tree):
+                self._show_notifications()
+
     @dbus.service.method(DBUS_PATH, in_signature="susssasa{ss}i", out_signature="u")
     def Notify(
         self,
@@ -125,63 +174,14 @@ class NotificationFetcher(dbus.service.Object):
     def GetServerInformation(self):
         return "notification_fetcher", "github.com/sencer", "0.0.0", "1"
 
-    def _update_context(self):
-        new_context = []
-        p = self.dm.tree
-        for key in self.context:
-            if key not in p.notifications:
-                break
-            new_context.append(key)
-            p = p.notifications[key]
-        self.context = new_context
-
-    def _show_notifications(self):
-        notifications = self.dm.get_context(self.context).notifications
-
-        items = [
-            (k, v) if len(v) > 1 else (v.last().id, v.last())
-            for k, v in notifications.items()
-        ]
-
-        selected, op = self.gui.show_notifications([item[1] for item in items])
-
-        if op == Operation.EXIT:
-            if self.context:
-                self.context.pop()
-                self._show_notifications()
-                return
-
-        if selected is None:
-            return
-
-        key, notification = items[selected]
-
-        do_action = isinstance(notification, Notification)
-        if do_action:
-            self.context = self.dm.map[notification.id]
-
-        if op == Operation.SELECT:
-            if do_action and self.desktop:
-                closure = lambda: self.ActionInvoked(key, "default")
-                self.desktop.process_action(closure)
-            else:
-                self.context.append(key)
-                self._show_notifications()
-        elif op == Operation.DELETE:
-            self.dm.remove_notification(key, self.context)
-            self._update_context()
-
-            if len(self.dm.tree):
-                self._show_notifications()
-
     @dbus.service.method(DBUS_PATH, in_signature="", out_signature="")
     def ShowNotifications(self):
         self.context = []
         self._show_notifications()
 
-    @dbus.service.method(DBUS_PATH, in_signature="", out_signature="u")
+    @dbus.service.method(DBUS_PATH, in_signature="", out_signature="uu")
     def ShowNotificationCount(self):
-        return len(self.dm.tree)
+        return len(self.dm.tree), self.dm.tree.urgency
 
     @dbus.service.method(DBUS_PATH, in_signature="", out_signature="s")
     def DumpNotifications(self):

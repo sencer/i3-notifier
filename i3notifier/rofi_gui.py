@@ -1,4 +1,3 @@
-import copy
 import subprocess
 from enum import Enum
 
@@ -47,8 +46,16 @@ class RofiGUI:
             notification.formatted() for notification in notifications
         ]
 
+        urgent = [
+            str(i)
+            for i, notification in enumerate(notifications)
+            if notification.urgency == 2
+        ]
+
         proc = subprocess.Popen(
-            [self.cmd] + self._args, stdin=subprocess.PIPE, stdout=subprocess.PIPE
+            [self.cmd] + self._args + (["-u", ",".join(urgent)] if urgent else []),
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
         )
 
         proc.stdin.write(self._separator.join(formatted_notifications))

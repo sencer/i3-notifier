@@ -21,7 +21,6 @@ class DataManager(threading.Thread):
         except:
             pass
 
-
     def _recursive_add_notification(cluster, notification, keys, i=0):
         if i == len(keys):
             return
@@ -35,7 +34,6 @@ class DataManager(threading.Thread):
         cluster.add(keys[i], notification)
 
     def add_notification(self, notification):
-
         for config in self.configs:
             if config.should_apply(notification):
                 config.update_notification(notification)
@@ -66,6 +64,7 @@ class DataManager(threading.Thread):
         if stop_case:
             cluster_to_delete = cluster.notifications[key]
             last = cluster_to_delete.last()
+            urgency = cluster.urgency
             nremoved = len(cluster_to_delete)
         else:
             nremoved, last = DataManager._recursive_remove_notification(
@@ -79,6 +78,9 @@ class DataManager(threading.Thread):
 
         if last is cluster._last:
             cluster._last = None
+
+        if urgency == cluster.urgency:
+            cluster._urgency = None
 
         return nremoved, last
 

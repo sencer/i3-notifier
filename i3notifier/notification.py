@@ -79,6 +79,15 @@ class NotificationCluster:
         self.notifications = dict()
         self._last = None
         self._len = 0
+        self._urgency = None
+
+    @property
+    def urgency(self):
+
+        self._urgency = self._urgency or max(
+            notification.urgency or 0 for notification in self.notifications.values()
+        )
+        return self._urgency
 
     def formatted(self):
         if len(self) == 1:
@@ -90,9 +99,11 @@ class NotificationCluster:
 
     def reset(self):
         self._len = 0
+        self._urgency = None
         self._last = None
 
     def add(self, key, notification):
+        self._urgency = max(self._urgency or 0, notification.urgency)
         self._last = notification
         self._len += 1
 
@@ -100,6 +111,9 @@ class NotificationCluster:
             self.notifications[key] = notification
 
     def remove(self, key):
+        if self.urgency == self.notifications[key].urgency:
+            self._urgency = None
+
         if self.notifications[key] == self.last():
             self._last = None
 
