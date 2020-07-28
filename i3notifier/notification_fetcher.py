@@ -29,10 +29,9 @@ def xdg_name_and_icon(app):
 class NotificationFetcher(dbus.service.Object):
     _id = 1
 
-    def __init__(self, dm, gui, desktop=None):
+    def __init__(self, dm, gui):
         self.dm = dm
         self.gui = gui
-        self.desktop = desktop
         self.context = []
 
         if len(self.dm.tree):
@@ -63,6 +62,9 @@ class NotificationFetcher(dbus.service.Object):
         )
 
         selected, op = self.gui.show_notifications([item[1] for item in items])
+        logger.info(
+            f"Selection is {items[selected][0] if selected else None}, operation is {op}."
+        )
 
         if op == Operation.EXIT:
             if self.context:
@@ -71,19 +73,18 @@ class NotificationFetcher(dbus.service.Object):
                 return
 
         if selected is None:
+            logger.info(f"DEBUG THIS {items}")
             return
 
         key, notification = items[selected]
 
         if op == Operation.SELECT:
             if isinstance(notification, Notification):
+                logger.info("Selection is a singleton. Invoking default action.")
                 self.context = self.dm.map[notification.id]
-                closure = lambda: self.ActionInvoked(key, "default")
-                if self.desktop:
-                    self.desktop.process_action(closure)
-                else:
-                    closure()
+                self.ActionInvoked(notification.id, "default")
             else:
+                logger.info("Selection is a cluster. Expanding.")
                 self.context.append(key)
                 self._show_notifications()
         elif op == Operation.DELETE:

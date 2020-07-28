@@ -1,3 +1,4 @@
+import html
 from html.parser import HTMLParser
 from io import StringIO
 
@@ -17,7 +18,7 @@ class MLStripper(HTMLParser):
         return self.text.getvalue()
 
 
-def strip_tags(html):
+def strip_tags(data):
     s = MLStripper()
-    s.feed(html)
+    s.feed(html.escape(data))
     return s.get_data()

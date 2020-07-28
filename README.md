@@ -35,13 +35,18 @@ Rofication, it implements the Galago standard.
     # To install (also see the requirements.txt)
     pip install i3-notifier
 
-    # To launch GUI
+    # To launch GUI; bind this to a shortcut
     dbus-send --session --print-reply --dest=org.freedesktop.Notifications /org/freedesktop/Notifications org.freedesktop.Notifications.ShowNotifications
 
     # Enter to expand group / execute action
     # Ctrl + Delete to delete
     # Esc to exit
 
-    # To get notification count
+    # To get notification count & urgency
     dbus-send --session --print-reply=literal --dest=org.freedesktop.Notifications /org/freedesktop/Notifications org.freedesktop.Notifications.ShowNotificationCount
 
+    # I am using this as part of py3status/i3block, which gets the 
+    # notification count (ignores urgency); and the notification deamon 
+    # has died for some reason starts it back.
+
+    command = "(dbus-send --session --print-reply=literal --dest=org.freedesktop.Notifications /org/freedesktop/Notifications org.freedesktop.Notifications.ShowNotificationCount 2>/dev/null || ($HOME/.local/bin/i3-notifier && echo '? ? ?'))|tr -s ' '|cut -d' ' -f 3"

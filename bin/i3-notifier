@@ -12,7 +12,6 @@ import daemon
 import daemon.pidfile
 from gi.repository import GLib
 from i3notifier.data_manager import DataManager
-from i3notifier.i3 import I3
 from i3notifier.notification_fetcher import NotificationFetcher
 from i3notifier.rofi_gui import RofiGUI
 
@@ -51,7 +50,6 @@ def run_daemon():
     data_manager = DataManager(config_list, dump_path)
 
     gui = RofiGUI()
-    i3 = I3()
 
     def dump_and_exit(n, f):
         data_manager.dump()
@@ -70,15 +68,16 @@ def run_daemon():
                 "i3-notifier is not running, but a lock file exists. Cleaning up."
             )
 
-    logger.info(f"Creating lock file {pid_file} and starting i3-notifier.")
     with daemon.DaemonContext(
         pidfile=daemon.pidfile.PIDLockFile(pid_file),
         signal_map={signal.SIGTERM: dump_and_exit},
         files_preserve=[file_logger.stream.fileno()],
     ):
+        logger.info(f"Creating lock file {pid_file}")
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
-        fetcher = NotificationFetcher(data_manager, gui, i3)
+        fetcher = NotificationFetcher(data_manager, gui)
 
+        logger.info(f"Starting i3-notifier.")
         try:
             GLib.MainLoop().run()
         except:

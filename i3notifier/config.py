@@ -16,7 +16,7 @@ class Config:
         # Returns a tuple, each element of which corresponds to the group
         # name that the notification should be assigned at the
         # corresponding nesting level.
-        return (notification.app_name or "_",)
+        return (notification.app_name or "_", notification.body)
 
     def update_notification(notification):
         # Edit the notification before saving it. By default no edits are
