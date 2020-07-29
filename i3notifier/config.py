@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from .utils import strip_tags
 
 
@@ -24,9 +26,11 @@ class Config:
         return notification
 
     def format_notification(notification):
+        time = datetime.fromtimestamp(notification.created_at // 1e9).strftime("%H:%M")
         # Format the notification
         text = f"<b>{strip_tags(notification.summary)}</b> "
-        text += f"<small>{notification.app_name}</small>"
+        text += f"<small>{time}</small>"
+        text += f"<small> {notification.app_name}</small>"
 
         if notification.body:
             text += (
