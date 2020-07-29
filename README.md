@@ -14,7 +14,7 @@ Also see the companion py3status module
   the subject. This is highly configurable. (No docs at the moment, but 
   see the `examples/i3_notifier_config.py`; also see the comments in 
   `i3notifier/config.py`)
-- Allows bulk delete of notifications in a category.
+- Allows bulk deletion of notifications in a category.
 - Implements "default" action.
 - Shows icons.
 - Does not use sockets, rather adds new dbus methods to show the 
@@ -36,15 +36,18 @@ Also see the companion py3status module
 ## Usage
 
 To install (also see the requirements.txt)
+
     pip install i3-notifier
 
 To launch GUI; bind this to a shortcut
+
     dbus-send --session --print-reply --dest=org.freedesktop.Notifications /org/freedesktop/Notifications org.freedesktop.Notifications.ShowNotifications
 
-Then use Enter to expand group / execute action; Ctrl + Delete to delete 
-notification or notification group and Esc to exit.
+Then use `Enter` to expand group / execute action; `Ctrl + Delete` to delete 
+notification or notification group and `Esc` to exit.
 
 To get notification count & urgency
+
     dbus-send --session --print-reply=literal --dest=org.freedesktop.Notifications /org/freedesktop/Notifications org.freedesktop.Notifications.ShowNotificationCount
 
 One can use this with i3blocks to show notifications in the bar
