@@ -1,5 +1,6 @@
 import logging
 import os.path
+import subprocess
 import time
 
 import dbus
@@ -82,6 +83,8 @@ class NotificationFetcher(dbus.service.Object):
             if isinstance(notification, Notification):
                 logger.info("Selection is a singleton. Invoking default action.")
                 self.context = self.dm.map[notification.id]
+                subprocess.Popen(["switch-to-urgent.py"])
+                time.sleep(0.25)
                 self.ActionInvoked(notification.id, "default")
             else:
                 logger.info("Selection is a cluster. Expanding.")
