@@ -3,7 +3,6 @@ setup.py
 bin/i3-notifier
 i3notifier/config.py
 i3notifier/data_manager.py
-i3notifier/i3.py
 i3notifier/notification.py
 i3notifier/notification_fetcher.py
 i3notifier/rofi_gui.py
