@@ -93,6 +93,7 @@ class NotificationFetcher(dbus.service.Object):
         elif op == Operation.DELETE:
             self.dm.remove_notification(key, self.context)
             self._update_context()
+            self._notifications_updated()
 
             if len(self.dm.tree):
                 self._show_notifications()
@@ -159,6 +160,7 @@ class NotificationFetcher(dbus.service.Object):
             )
 
         self.dm.add_notification(notification)
+        self._notifications_updated()
         return id
 
     @dbus.service.method(DBUS_PATH, in_signature="", out_signature="as")
@@ -172,6 +174,9 @@ class NotificationFetcher(dbus.service.Object):
             "icon-static",
         ]
 
+    def _notifications_updated(self):
+        self.NotificationsUpdated(len(self.dm.tree), self.dm.tree.urgency or 0)
+
     @dbus.service.method(DBUS_PATH, in_signature="u", out_signature="")
     def CloseNotification(self, id):
         notification = self.dm.get_context_by_id(id).notifications[id]
@@ -181,6 +186,7 @@ class NotificationFetcher(dbus.service.Object):
             self.dm.remove_notification(id)
             self._update_context()
             self.NotificationClosed(id, 3)
+            self._notifications_updated()
         else:
             logger.info(
                 " but notification is configured as non-closeable, "
@@ -200,6 +206,10 @@ class NotificationFetcher(dbus.service.Object):
     def ShowNotificationCount(self):
         return len(self.dm.tree), self.dm.tree.urgency or 0
 
+    @dbus.service.method(DBUS_PATH, in_signature="", out_signature="")
+    def SignalNotificationCount(self):
+        self._notifications_updated()
+
     @dbus.service.method(DBUS_PATH, in_signature="", out_signature="s")
     def DumpNotifications(self):
         self.dm.dump()
@@ -212,3 +222,7 @@ class NotificationFetcher(dbus.service.Object):
     @dbus.service.signal(DBUS_PATH, signature="us")
     def ActionInvoked(self, id, action):
         logger.info(f"ActionInvoked with action {action} signalled for {id}.")
+
+    @dbus.service.signal(DBUS_PATH, signature="uu")
+    def NotificationsUpdated(self, num, urgency):
+        logger.info(f"Notifications updated.")
