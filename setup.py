@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name="i3-notifier",
-    version="0.7",
+    version="0.8",
     description="A notification daemon for i3",
     author="Sencer Selcuk",
     packages=["i3notifier", "tests"],

@@ -43,7 +43,7 @@ def run_daemon():
 
     logger.info(f"Found {len(config_list)} configurations.")
 
-    dump_path = os.path.join("/tmp", os.environ["USER"], "i3-notifier.dump")
+    dump_path = "/tmp/i3-notifier.dump"
     logger.info(
         f"Notifications will be dumped to {dump_path} on graceful exit or when asked."
     )
@@ -55,7 +55,7 @@ def run_daemon():
         data_manager.dump()
         sys.exit(0)
 
-    pid_file = os.path.join("/tmp", os.environ["USER"], "i3-notifier.pid")
+    pid_file = "/tmp/i3-notifier.pid"
 
     if os.path.exists(pid_file):
         try:
@@ -88,9 +88,7 @@ def run_daemon():
 if __name__ == "__main__":
 
     logger = logging.getLogger("i3notifier")
-    file_logger = logging.FileHandler(
-        f"/tmp/{os.environ['USER']}/i3-notifier.log", "w",
-    )
+    file_logger = logging.FileHandler("/tmp/i3-notifier.log", "w",)
     file_logger.setFormatter(
         logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     )
