@@ -4,6 +4,9 @@ This is a notification manager for i3 desktop environment inspired by
 [Rofication](https://github.com/DaveDavenport/Rofication). Like 
 Rofication, it implements the Galago standard. 
 
+Also see the companion py3status module 
+[py3-notifier](https://github.com/sencer/py3-notifier).
+
 ## Differences from Rofication
 
 - Notifications are stored in a tree structure, where they can be grouped 
@@ -32,21 +35,20 @@ Rofication, it implements the Galago standard.
 
 ## Usage
 
-    # To install (also see the requirements.txt)
+To install (also see the requirements.txt)
     pip install i3-notifier
 
-    # To launch GUI; bind this to a shortcut
+To launch GUI; bind this to a shortcut
     dbus-send --session --print-reply --dest=org.freedesktop.Notifications /org/freedesktop/Notifications org.freedesktop.Notifications.ShowNotifications
 
-    # Enter to expand group / execute action
-    # Ctrl + Delete to delete
-    # Esc to exit
+Then use Enter to expand group / execute action; Ctrl + Delete to delete 
+notification or notification group and Esc to exit.
 
-    # To get notification count & urgency
+To get notification count & urgency
     dbus-send --session --print-reply=literal --dest=org.freedesktop.Notifications /org/freedesktop/Notifications org.freedesktop.Notifications.ShowNotificationCount
 
-    # I am using this as part of py3status/i3block, which gets the 
-    # notification count (ignores urgency); and the notification deamon 
-    # has died for some reason starts it back.
+One can use this with i3blocks to show notifications in the bar
+or even better switch to py3status and install 
+[py3-notifier](https://github.com/sencer/py3-notifier).
 
     command = "(dbus-send --session --print-reply=literal --dest=org.freedesktop.Notifications /org/freedesktop/Notifications org.freedesktop.Notifications.ShowNotificationCount 2>/dev/null || ($HOME/.local/bin/i3-notifier && echo '? ? ?'))|tr -s ' '|cut -d' ' -f 3"
