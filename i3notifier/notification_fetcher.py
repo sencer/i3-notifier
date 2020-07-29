@@ -49,9 +49,15 @@ class NotificationFetcher(dbus.service.Object):
                 break
             new_context.append(key)
             p = p.notifications[key]
-        self.context = new_context
+        if self.context == new_context:
+            logger.info("Context did not change")
+            return False
 
-    def _show_notifications(self):
+        logger.info("Context updated.")
+        self.context = new_context
+        return True
+
+    def _show_notifications(self, row=0):
         notifications = self.dm.get_context(self.context).notifications
 
         items = sorted(
@@ -62,16 +68,17 @@ class NotificationFetcher(dbus.service.Object):
             key=lambda x: (-x[1].urgency, -x[1].last().created_at),
         )
 
-        selected, op = self.gui.show_notifications([item[1] for item in items])
+        selected, op = self.gui.show_notifications([item[1] for item in items], row)
         logger.info(
-            f"Selection is {items[selected][0] if selected else None}, operation is {op}."
+            f"Selection is {None if selected is None else items[selected][0]}"
+            f", operation is {op}."
         )
 
         if op == Operation.EXIT:
             if self.context:
                 self.context.pop()
                 self._show_notifications()
-                return
+            return
 
         if selected is None:
             logger.info(f"DEBUG THIS {items}")
@@ -92,11 +99,14 @@ class NotificationFetcher(dbus.service.Object):
                 self._show_notifications()
         elif op == Operation.DELETE:
             self.dm.remove_notification(key, self.context)
-            self._update_context()
+
+            is_new_context = self._update_context()
+            row = 0 if is_new_context or len(notifications) == 1 else selected
+
             self._notifications_updated()
 
             if len(self.dm.tree):
-                self._show_notifications()
+                self._show_notifications(row)
 
     @dbus.service.method(DBUS_PATH, in_signature="susssasa{ss}i", out_signature="u")
     def Notify(

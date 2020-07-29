@@ -18,10 +18,8 @@ class RofiGUI:
         "-eh",
         "2",
         "-width",
-        "30",
+        "-40",
         "-markup-rows",
-        "-matching",
-        "fuzzy",
         "-i",
         "-format",
         "i",
@@ -36,13 +34,15 @@ class RofiGUI:
         "-show-icons",
         "-columns",
         "1",
+        "-lines",
+        "10",
     ]
 
     def __init__(self, *args, cmd=None):
         self.cmd = cmd or "rofi"
         self._args.extend(args)
 
-    def show_notifications(self, notifications):
+    def show_notifications(self, notifications, row=0):
 
         formatted_notifications = [
             notification.formatted() for notification in notifications
@@ -55,7 +55,10 @@ class RofiGUI:
         ]
 
         proc = subprocess.Popen(
-            [self.cmd] + self._args + (["-u", ",".join(urgent)] if urgent else []),
+            [self.cmd]
+            + self._args
+            + ["-selected-row", str(row)]
+            + (["-u", ",".join(urgent)] if urgent else []),
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
         )
