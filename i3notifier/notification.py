@@ -36,14 +36,27 @@ class Notification:
         self.urgency = urgency
         self.config = Config
 
+    @property
+    def pre_action_hooks(self):
+        return self.config.pre_action_hooks
+
+    @property
+    def post_action_hooks(self):
+        return self.config.post_action_hooks
+
+    @property
+    def pre_close_hooks(self):
+        return self.config.pre_close_hooks
+
+    @property
+    def post_close_hooks(self):
+        return self.config.post_close_hooks
+
     def formatted(self):
         return self.config.format_notification(self)
 
     def keys(self):
         return self.config.get_keys(self)
-
-    def closeable(self):
-        return self.config.closeable(self)
 
     def strip(self):
         return Notification(

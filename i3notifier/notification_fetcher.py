@@ -56,6 +56,11 @@ class NotificationFetcher(dbus.service.Object):
         self.context = new_context
         return True
 
+    def _remove_notification(self, key):
+        self.dm.remove_notification(key, self.context)
+        self._notifications_updated()
+        return self._update_context()
+
     def _show_notifications(self, row=0):
         notifications = self.dm.get_context(self.context).notifications
 
@@ -89,18 +94,26 @@ class NotificationFetcher(dbus.service.Object):
             if isinstance(notification, Notification):
                 logger.info("Selection is a singleton. Invoking default action.")
                 self.context = self.dm.map[notification.id]
-                self.ActionInvoked(notification.id, "default")
+
+                if self._process_hooks(notification, "pre_action_hooks"):
+                    self.ActionInvoked(notification.id, "default")
+                else:
+                    logger.info(f"Skipping action for {notification.id}.")
+
+                if self._process_hooks(notification, "post_action_hooks"):
+                    self._remove_notification(notification.id)
+                    self.NotificationClosed(notification.id, 2)
+                else:
+                    logger.info(
+                        f"Skipping CloseNotification (after action) for {notification.id}."
+                    )
             else:
                 logger.info("Selection is a cluster. Expanding.")
                 self.context.append(key)
                 self._show_notifications()
         elif op == Operation.DELETE:
-            self.dm.remove_notification(key, self.context)
-
-            is_new_context = self._update_context()
-            row = 0 if is_new_context or len(notifications) == 1 else selected
-
-            self._notifications_updated()
+            context_changed = self._remove_notification(key)
+            row = 0 if context_changed or len(notifications) == 1 else selected
 
             if len(self.dm.tree):
                 self._show_notifications(row)
@@ -184,21 +197,34 @@ class NotificationFetcher(dbus.service.Object):
     def _notifications_updated(self):
         self.NotificationsUpdated(len(self.dm.tree), self.dm.tree.urgency or 0)
 
+    def _process_hooks(self, notification, hook_name):
+        logger.info(f"Processing {hook_name}")
+        ret = True
+
+        for hook in getattr(notification, hook_name):
+            logger.info(f"  > Hook {hook}")
+            if hook == "ignore":
+                ret = False
+            else:
+                hook(notification)
+
+        return ret
+
     @dbus.service.method(DBUS_PATH, in_signature="u", out_signature="")
     def CloseNotification(self, id):
+
         notification = self.dm.get_context_by_id(id).notifications[id]
         logger.info(f"Received CloseNotification request for {notification}")
 
-        if notification.closeable():
-            self.dm.remove_notification(id)
-            self._update_context()
+        if self._process_hooks(notification, "pre_close_hooks"):
             self.NotificationClosed(id, 3)
-            self._notifications_updated()
         else:
-            logger.info(
-                " but notification is configured as non-closeable, "
-                "so it won't be automatically deleted from the view."
-            )
+            logger.info(f"Didn't send NotificationClosed signal for {id}")
+
+        if self._process_hooks(notification, "post_close_hooks"):
+            self._remove_notification(id)
+        else:
+            logger.info(f"Didn't delete notification {id}.")
 
     @dbus.service.method(DBUS_PATH, in_signature="", out_signature="ssss")
     def GetServerInformation(self):

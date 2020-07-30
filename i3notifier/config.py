@@ -4,14 +4,15 @@ from .utils import strip_tags
 
 
 class Config:
+    pre_close_hooks = []
+    post_close_hooks = []
+    pre_action_hooks = []
+    post_action_hooks = []
+
     def should_apply(notification):
         # To group notifications and apply certain formatting inherit this
         # class and make sure should_apply(notification) is the first Config
         # that returns True to those notifications.
-        return True
-
-    def closeable(notification):
-        # It is better to ignore the close request for some notifications
         return True
 
     def get_keys(notification):
