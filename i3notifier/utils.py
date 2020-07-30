@@ -1,4 +1,5 @@
 import html
+import threading
 from html.parser import HTMLParser
 from io import StringIO
 
@@ -22,3 +23,22 @@ def strip_tags(data):
     s = MLStripper()
     s.feed(html.escape(data))
     return s.get_data()
+
+
+class RunAsync(threading.Thread):
+    def __init__(self, closure, *args, **kwargs):
+        self.closure = closure
+        self.args = args
+        self.kwargs = kwargs
+        threading.Thread.__init__(self)
+
+    def run(self):
+        return self.closure(*self.args, **self.kwargs)
+
+
+class RunAsyncFactory:
+    def __init__(self, closure):
+        self.closure = closure
+
+    def __call__(self, *args, **kwargs):
+        return RunAsync(self.closure, *args, **kwargs).start()

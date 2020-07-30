@@ -1,7 +1,5 @@
 import logging
 import os.path
-import subprocess
-import threading
 import time
 
 import dbus
@@ -16,11 +14,6 @@ from .rofi_gui import Operation
 DBUS_PATH = "org.freedesktop.Notifications"
 
 logger = logging.getLogger(__name__)
-
-
-class Switcher(threading.Thread):
-    def run(self):
-        subprocess.call(["switch-to-urgent.py"])
 
 
 def xdg_name_and_icon(app):
@@ -96,8 +89,6 @@ class NotificationFetcher(dbus.service.Object):
             if isinstance(notification, Notification):
                 logger.info("Selection is a singleton. Invoking default action.")
                 self.context = self.dm.map[notification.id]
-                Switcher().start()
-                time.sleep(0.25)
                 self.ActionInvoked(notification.id, "default")
             else:
                 logger.info("Selection is a cluster. Expanding.")
