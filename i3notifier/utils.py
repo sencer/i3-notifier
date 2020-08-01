@@ -26,6 +26,9 @@ def strip_tags(data):
 
 
 class RunAsync(threading.Thread):
+
+    __slots__ = "args", "kwargs", "closure"
+
     def __init__(self, closure, *args, **kwargs):
         self.closure = closure
         self.args = args
@@ -37,6 +40,8 @@ class RunAsync(threading.Thread):
 
 
 class RunAsyncFactory:
+    __slots__ = "closure"
+
     def __init__(self, closure):
         self.closure = closure
 

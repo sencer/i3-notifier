@@ -27,6 +27,7 @@ def xdg_name_and_icon(app):
 
 
 class NotificationFetcher(dbus.service.Object):
+    __slots__ = "dm", "gui", "context"
     _id = 1
 
     def __init__(self, dm, gui):

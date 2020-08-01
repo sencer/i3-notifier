@@ -13,6 +13,19 @@ class Urgency(IntEnum):
 
 
 class Notification:
+    __slots__ = (
+        "id",
+        "app_name",
+        "app_icon",
+        "body",
+        "summary",
+        "actions",
+        "created_at",
+        "expires_at",
+        "urgency",
+        "config",
+    )
+
     def __init__(
         self,
         id,
@@ -99,6 +112,8 @@ class Notification:
 
 
 class NotificationCluster:
+    __slots__ = "notifications", "_last", "_len", "_urgency"
+
     def __init__(self):
         self.notifications = dict()
         self._last = None

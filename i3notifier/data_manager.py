@@ -5,6 +5,9 @@ from .notification import Notification, NotificationCluster
 
 
 class DataManager(threading.Thread):
+
+    __slots__ = "tree", "map", "lock", "configs", "dump_path"
+
     def __init__(self, configs, dump_path):
         super().__init__()
 

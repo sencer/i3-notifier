@@ -38,6 +38,8 @@ class RofiGUI:
         "10",
     ]
 
+    __slots__ = 'cmd'
+
     def __init__(self, *args, cmd=None):
         self.cmd = cmd or "rofi"
         self._args.extend(args)
