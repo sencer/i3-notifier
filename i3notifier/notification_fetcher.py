@@ -129,7 +129,7 @@ class NotificationFetcher(dbus.service.Object):
         )
 
         if expire_timeout > 0:
-            notification.expire_at = notification.created_at + expire_timeout
+            notification.expires_at = notification.created_at + expire_timeout
 
         if "urgency" in hints:
             notification.urgency = (
