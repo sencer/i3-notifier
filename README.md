@@ -38,8 +38,12 @@ Also see the companion py3status module
 To install (also see the requirements.txt)
 
     pip install i3-notifier
+    
+Make sure you are not running any other notification daemon (if you are running `dunst` for example, kill it with `killall dunst`). Then start `i3-notifier`. You might want to make sure `i3-notifier` and its companion script `switch-to-urgent.py` are in the `$PATH`. You can confirm it is running by
 
-To launch GUI; bind this to a shortcut
+    dbus-send --session --print-reply --dest=org.freedesktop.Notifications /org/freedesktop/Notifications org.freedesktop.Notifications.GetServerInformation
+
+Then to launch GUI; bind this to a shortcut
 
     dbus-send --session --print-reply --dest=org.freedesktop.Notifications /org/freedesktop/Notifications org.freedesktop.Notifications.ShowNotifications
 
