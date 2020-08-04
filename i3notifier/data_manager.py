@@ -91,8 +91,13 @@ class DataManager(threading.Thread):
         with self.lock:
             if isinstance(id, int):
                 context = self.map.pop(id)
+                notification = self.get_context(context).notifications[id]
+                if notification.timer is not None:
+                    notification.timer.cancel()
             else:
                 for leaf in self.get_context(context).notifications[id].leafs():
+                    if leaf.timer is not None:
+                        leaf.timer.cancel()
                     self.map.pop(leaf.id)
 
             DataManager._recursive_remove_notification(self.tree, [*context, id], i=0)

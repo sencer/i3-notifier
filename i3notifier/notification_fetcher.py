@@ -1,5 +1,7 @@
+import enum
 import logging
 import os.path
+import threading
 import time
 
 import dbus
@@ -24,6 +26,13 @@ def xdg_name_and_icon(app):
             entry.parse(path)
             return entry.getName(), entry.getIcon()
     return None, None
+
+
+class RemoveReason(enum.Enum):
+    APP_REQUESTED = 0
+    USER_DELETED = 1
+    ACTION_INVOKED = 2
+    EXPIRED = 3
 
 
 class NotificationFetcher(dbus.service.Object):
@@ -53,7 +62,7 @@ class NotificationFetcher(dbus.service.Object):
             logger.info(f"Didn't send NotificationClosed signal for {id}")
 
         if self._process_hooks(notification, "post_close_hooks"):
-            self._remove_notification(id)
+            self._remove_notification(id, RemoveReason.APP_REQUESTED)
         else:
             logger.info(f"Didn't delete notification {id}.")
 
@@ -75,7 +84,7 @@ class NotificationFetcher(dbus.service.Object):
 
     @dbus.service.method(DBUS_PATH, in_signature="", out_signature="ssss")
     def GetServerInformation(self):
-        return "i3notifier", "github.com/sencer/i3-notifier", "0.11", "1"
+        return "i3notifier", "github.com/sencer/i3-notifier", "0.12", "1"
 
     @dbus.service.method(DBUS_PATH, in_signature="susssasa{ss}i", out_signature="u")
     def Notify(
@@ -139,6 +148,15 @@ class NotificationFetcher(dbus.service.Object):
             )
 
         self.dm.add_notification(notification)
+
+        if notification.expires and notification.expires_at:
+            notification.timer = threading.Timer(
+                (notification.expires_at - notification.created_at) / 1000,
+                self._remove_notification,
+                (notification.id, RemoveReason.EXPIRED),
+            )
+            notification.timer.start()
+
         self._notifications_updated()
         return id
 
@@ -187,7 +205,8 @@ class NotificationFetcher(dbus.service.Object):
 
         return ret
 
-    def _remove_notification(self, key):
+    def _remove_notification(self, key, reason):
+        logger.info(f"Attempting to remove notification {key} since {reason}")
         self.dm.remove_notification(key, self.context)
         self._notifications_updated()
         return self._update_context()
@@ -232,7 +251,9 @@ class NotificationFetcher(dbus.service.Object):
                     logger.info(f"Skipping action for {notification.id}.")
 
                 if self._process_hooks(notification, "post_action_hooks"):
-                    self._remove_notification(notification.id)
+                    self._remove_notification(
+                        notification.id, RemoveReason.ACTION_INVOKED
+                    )
                     self.NotificationClosed(notification.id, 2)
                 else:
                     logger.info(
@@ -243,7 +264,7 @@ class NotificationFetcher(dbus.service.Object):
                 self.context.append(key)
                 self._show_notifications()
         elif op == Operation.DELETE:
-            context_changed = self._remove_notification(key)
+            context_changed = self._remove_notification(key, RemoveReason.USER_DELETED)
             row = 0 if context_changed or len(notifications) == 1 else selected
 
             if len(self.dm.tree):

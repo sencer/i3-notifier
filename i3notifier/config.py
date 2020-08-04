@@ -9,6 +9,9 @@ class Config:
     pre_action_hooks = []
     post_action_hooks = []
 
+    # Ignore expiration by default.
+    expires = False
+
     def should_apply(notification):
         # To group notifications and apply certain formatting inherit this
         # class and make sure should_apply(notification) is the first Config

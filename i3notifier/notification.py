@@ -24,6 +24,7 @@ class Notification:
         "expires_at",
         "urgency",
         "config",
+        "timer",
     )
 
     def __init__(
@@ -48,6 +49,7 @@ class Notification:
         self.expires_at = expires_at
         self.urgency = urgency
         self.config = Config
+        self.timer = None
 
     @property
     def pre_action_hooks(self):
@@ -64,6 +66,10 @@ class Notification:
     @property
     def post_close_hooks(self):
         return self.config.post_close_hooks
+
+    @property
+    def expires(self):
+        return self.config.expires
 
     def formatted(self):
         return self.config.format_notification(self)
@@ -132,8 +138,9 @@ class NotificationCluster:
         if len(self) == 1:
             return self.last().formatted()
 
-        dummy = copy.deepcopy(self.last())
+        dummy = self.last().strip()
         dummy.app_name = f"{dummy.app_name} ({len(self)})"
+        dummy.config = self.last().config
         return dummy.formatted()
 
     def reset(self):
