@@ -71,7 +71,7 @@ def run_daemon():
     with daemon.DaemonContext(
         pidfile=daemon.pidfile.PIDLockFile(pid_file),
         signal_map={signal.SIGTERM: dump_and_exit},
-        files_preserve=[file_logger.stream.fileno()],
+        files_preserve=files_preserve,
     ):
         logger.info(f"Creating lock file {pid_file}")
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
@@ -86,13 +86,17 @@ def run_daemon():
 
 
 if __name__ == "__main__":
-
     logger = logging.getLogger("i3notifier")
-    file_logger = logging.FileHandler("/tmp/i3-notifier.log", "w",)
-    file_logger.setFormatter(
-        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    )
-    logger.addHandler(file_logger)
-    logger.setLevel(logging.INFO)
+    files_preserve = []
+
+    if len(sys.argv) > 1 and sys.argv[1] == "--debug":
+        file_logger = logging.FileHandler("/tmp/i3-notifier.log", "w",)
+        file_logger.setFormatter(
+            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        )
+        files_preserve.append(file_logger.stream.fileno())
+
+        logger.addHandler(file_logger)
+        logger.setLevel(logging.INFO)
 
     run_daemon()

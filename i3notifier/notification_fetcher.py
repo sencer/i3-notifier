@@ -99,7 +99,7 @@ class NotificationFetcher(dbus.service.Object):
         expire_timeout,
     ):
         logger.info(
-            "Received notification :\n"
+            "Received notification:\n"
             f'app_name:"{app_name}" '
             f"replaces_id:{replaces_id} "
             f'app_icon:"{app_icon}" '
