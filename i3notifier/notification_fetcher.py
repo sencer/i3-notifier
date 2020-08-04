@@ -45,7 +45,7 @@ class NotificationFetcher(dbus.service.Object):
         self.context = []
 
         if len(self.dm.tree):
-            self._id = self.dm.tree.last().id + 1
+            self._id = self.dm.tree.last.id + 1
 
         name = dbus.service.BusName(DBUS_PATH, dbus.SessionBus())
         super().__init__(name, "/org/freedesktop/Notifications")
@@ -216,10 +216,10 @@ class NotificationFetcher(dbus.service.Object):
 
         items = sorted(
             [
-                (k, v) if len(v) > 1 else (v.last().id, v.last())
+                (k, v) if len(v) > 1 else (v.last.id, v.last)
                 for k, v in notifications.items()
             ],
-            key=lambda x: (-x[1].urgency, -x[1].last().created_at),
+            key=lambda x: (-x[1].urgency, -x[1].last.created_at),
         )
 
         selected, op = self.gui.show_notifications([item[1] for item in items], row)

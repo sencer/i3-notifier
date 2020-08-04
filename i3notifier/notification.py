@@ -93,6 +93,7 @@ class Notification:
     def __len__(self):
         return 1
 
+    @property
     def last(self):
         return self
 
@@ -130,17 +131,17 @@ class NotificationCluster:
     def urgency(self):
 
         if self._urgency is None and self.notifications:
-            self._urgency = self.last().urgency
+            self._urgency = self.last.urgency
 
         return self._urgency or 0
 
     def formatted(self):
         if len(self) == 1:
-            return self.last().formatted()
+            return self.last.formatted()
 
-        dummy = self.last().strip()
+        dummy = self.last.strip()
         dummy.app_name = f"{dummy.app_name} ({len(self)})"
-        dummy.config = self.last().config
+        dummy.config = self.last.config
         return dummy.formatted()
 
     def reset(self):
@@ -150,9 +151,9 @@ class NotificationCluster:
 
     def add(self, key, notification):
 
-        if self._last is None or notification.urgency >= self.last().urgency:
+        if self._last is None or notification.urgency >= self.last.urgency:
             self._last = notification
-        self._urgency = self.last().urgency
+        self._urgency = self.last.urgency
         self._len += 1
 
         if isinstance(key, int):
@@ -162,13 +163,14 @@ class NotificationCluster:
         if self.urgency == self.notifications[key].urgency:
             self._urgency = None
 
-        if self.notifications[key] == self.last():
+        if self.notifications[key] == self.last:
             self._last = None
 
         self._len -= len(self.notifications[key])
 
         del self.notifications[key]
 
+    @property
     def last(self):
         # This is called last for historical reasons, where I represented a cluster
         # by the last notification in it. Now urgency trumps creation time. So this
@@ -176,8 +178,8 @@ class NotificationCluster:
         if self._last is None and self.notifications:
             self._last = max(
                 self.notifications.values(),
-                key=lambda x: (x.urgency, x.last().created_at),
-            ).last()
+                key=lambda x: (x.urgency, x.last.created_at),
+            ).last
 
         return self._last
 

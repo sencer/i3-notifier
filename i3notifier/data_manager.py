@@ -66,7 +66,7 @@ class DataManager(threading.Thread):
         stop_case = last_key and has_key
         if stop_case:
             cluster_to_delete = cluster.notifications[key]
-            last = cluster_to_delete.last()
+            last = cluster_to_delete.last
             urgency = cluster.urgency
             nremoved = len(cluster_to_delete)
         else:
