@@ -76,15 +76,14 @@ class NotificationFetcher(dbus.service.Object):
         return [
             "actions",
             "body",
-            "body-hyperlinks",
-            "body-images",
             "body-markup",
             "icon-static",
+            "persistence",
         ]
 
     @dbus.service.method(DBUS_PATH, in_signature="", out_signature="ssss")
     def GetServerInformation(self):
-        return "i3notifier", "github.com/sencer/i3-notifier", "0.12", "1"
+        return "i3notifier", "github.com/sencer/i3-notifier", "0.12", "1.2"
 
     @dbus.service.method(DBUS_PATH, in_signature="susssasa{ss}i", out_signature="u")
     def Notify(

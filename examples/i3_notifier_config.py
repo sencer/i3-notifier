@@ -16,14 +16,13 @@ class DefaultConfig(Config):
 
 def ChromeAppFactory(title, url, icon=None, second_key="body"):
     kChrome = "Google Chrome"
-    kURL = f'<a href="https://{url}/">{url}</a>'
-    lURL = len(kURL)
+    lURL = len(url)
     icon = icon or "chrome"
 
     class ChromeApp(DefaultConfig):
         def should_apply(notification):
             return (
-                notification.body.startswith(kURL) and notification.app_name == kChrome
+                notification.body.startswith(url) and notification.app_name == kChrome
             )
 
         def update_notification(notification):

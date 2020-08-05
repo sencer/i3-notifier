@@ -2,7 +2,8 @@
 
 This is a notification manager for i3 desktop environment inspired by 
 [Rofication](https://github.com/DaveDavenport/Rofication). Like 
-Rofication, it implements the Galago standard. 
+Rofication, it implements the [Gnome Desktop Notifications 
+Standard](https://developer.gnome.org/notification-spec/) standard. 
 
 Also see the companion py3status module 
 [py3-notifier](https://github.com/sencer/py3-notifier).
