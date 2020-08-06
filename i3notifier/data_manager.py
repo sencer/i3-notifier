@@ -107,11 +107,16 @@ class DataManager(threading.Thread):
 
     def get_context(self, context=()):
         p = self.tree
+
+        if context and context[0] not in p.notifications:
+            while len(p.notifications) == 1:
+                p = next(iter(p.notifications.values()))
+
         for key in context:
             p = p.notifications[key]
 
         while len(p.notifications) == 1:
-            child = list(p.notifications.values())[0]
+            child = next(iter(p.notifications.values()))
 
             if isinstance(child, Notification):
                 break
