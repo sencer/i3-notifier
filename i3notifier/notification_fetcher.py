@@ -264,7 +264,8 @@ class NotificationFetcher(dbus.service.Object):
                 self._show_notifications()
         elif op == Operation.DELETE:
             context_changed = self._remove_notification(key, RemoveReason.USER_DELETED)
-            row = 0 if context_changed or len(notifications) == 1 else selected
+
+            row = 0 if context_changed else selected - (selected == len(notifications))
 
             if len(self.dm.tree):
                 self._show_notifications(row)
