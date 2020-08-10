@@ -45,7 +45,7 @@ class NotificationFetcher(dbus.service.Object):
         self.context = []
 
         if len(self.dm.tree):
-            self._id = self.dm.tree.last.id + 1
+            self._id = self.dm.tree.best.id + 1
 
         name = dbus.service.BusName(DBUS_PATH, dbus.SessionBus())
         super().__init__(name, "/org/freedesktop/Notifications")
@@ -83,7 +83,7 @@ class NotificationFetcher(dbus.service.Object):
 
     @dbus.service.method(DBUS_PATH, in_signature="", out_signature="ssss")
     def GetServerInformation(self):
-        return "i3notifier", "github.com/sencer/i3-notifier", "0.13", "1.2"
+        return "i3notifier", "github.com/sencer/i3-notifier", "0.14", "1.2"
 
     @dbus.service.method(DBUS_PATH, in_signature="susssasa{ss}i", out_signature="u")
     def Notify(
@@ -156,7 +156,7 @@ class NotificationFetcher(dbus.service.Object):
             )
             notification.timer.start()
 
-        self._notifications_updated()
+        self._notifications_updated(0)  # 0: notification added
         return id
 
     @dbus.service.method(DBUS_PATH, in_signature="", out_signature="uu")
@@ -170,7 +170,7 @@ class NotificationFetcher(dbus.service.Object):
 
     @dbus.service.method(DBUS_PATH, in_signature="", out_signature="")
     def SignalNotificationCount(self):
-        self._notifications_updated()
+        self._notifications_updated(2)  # 2: manual
 
     # Signals
 
@@ -182,14 +182,19 @@ class NotificationFetcher(dbus.service.Object):
     def NotificationClosed(self, id, reason):
         logger.info(f"NotificationClosed signalled for {id} due to {reason}.")
 
-    @dbus.service.signal(DBUS_PATH, signature="uu")
-    def NotificationsUpdated(self, num, urgency):
+    @dbus.service.signal(DBUS_PATH, signature="uuus")
+    def NotificationsUpdated(self, mode, num, urgency, single_line):
         logger.info(f"Notifications updated.")
 
     # Internal methods
 
-    def _notifications_updated(self):
-        self.NotificationsUpdated(len(self.dm.tree), self.dm.tree.urgency or 0)
+    def _notifications_updated(self, mode):
+        self.NotificationsUpdated(
+            mode,
+            len(self.dm.tree),
+            (self.dm.tree.urgency or 0),
+            self.dm.last.single_line() if self.dm.last else "",
+        )
 
     def _process_hooks(self, notification, hook_name):
         logger.info(f"Processing {hook_name}")
@@ -207,7 +212,7 @@ class NotificationFetcher(dbus.service.Object):
     def _remove_notification(self, key, reason):
         logger.info(f"Attempting to remove notification {key} since {reason}")
         self.dm.remove_notification(key, self.context)
-        self._notifications_updated()
+        self._notifications_updated(1)  # 1: deleted
         return self._update_context()
 
     def _show_notifications(self, row=0):
@@ -215,10 +220,10 @@ class NotificationFetcher(dbus.service.Object):
 
         items = sorted(
             [
-                (k, v) if len(v) > 1 else (v.last.id, v.last)
+                (k, v) if len(v) > 1 else (v.best.id, v.best)
                 for k, v in notifications.items()
             ],
-            key=lambda x: (-x[1].urgency, -x[1].last.created_at),
+            key=lambda x: (-x[1].urgency, -x[1].best.created_at),
         )
 
         selected, op = self.gui.show_notifications([item[1] for item in items], row)

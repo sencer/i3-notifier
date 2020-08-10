@@ -39,7 +39,7 @@ class Config:
         if notification.body:
             text += (
                 "\n<i>"
-                + strip_tags(notification.body.replace(r"\n", "").strip())
+                + strip_tags(notification.body.replace("\n", "").strip())
                 + "</i>"
             )
 
@@ -51,3 +51,8 @@ class Config:
             )
         else:
             return text.encode("utf-8")
+
+    def single_line(notification):
+        return f"{strip_tags(notification.summary)} : {strip_tags(notification.body)}".replace(
+            "\n", ""
+        ).strip()

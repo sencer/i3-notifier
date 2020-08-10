@@ -6,13 +6,14 @@ from .notification import Notification, NotificationCluster
 
 class DataManager(threading.Thread):
 
-    __slots__ = "tree", "map", "lock", "configs", "dump_path"
+    __slots__ = "tree", "map", "lock", "configs", "dump_path", "last"
 
     def __init__(self, configs, dump_path):
         super().__init__()
 
         self.tree = NotificationCluster()
         self.map = dict()
+        self.last = None
 
         self.lock = threading.Lock()
         self.configs = configs
@@ -49,6 +50,7 @@ class DataManager(threading.Thread):
             self.remove_notification(notification.id)
 
         with self.lock:
+            self.last = notification
             self.map[notification.id] = keys
             DataManager._recursive_add_notification(
                 self.tree, notification, [*keys, notification.id]
@@ -56,21 +58,21 @@ class DataManager(threading.Thread):
 
     def _recursive_remove_notification(cluster, keys, i=0):
         key = keys[i]
-        last_key = i == len(keys) - 1
+        best_key = i == len(keys) - 1
         has_key = key in cluster.notifications
-        if last_key and not has_key:
+        if best_key and not has_key:
             # Short-cutted view, descend
             key = list(cluster.notifications.keys())[0]
             i -= 1
 
-        stop_case = last_key and has_key
+        stop_case = best_key and has_key
         if stop_case:
             cluster_to_delete = cluster.notifications[key]
-            last = cluster_to_delete.last
+            best = cluster_to_delete.best
             urgency = cluster.urgency
             nremoved = len(cluster_to_delete)
         else:
-            nremoved, last, urgency = DataManager._recursive_remove_notification(
+            nremoved, best, urgency = DataManager._recursive_remove_notification(
                 cluster.notifications[key], keys, i + 1
             )
 
@@ -79,23 +81,28 @@ class DataManager(threading.Thread):
 
         cluster._len -= nremoved
 
-        if last is cluster._last:
-            cluster._last = None
+        if best is cluster._best:
+            cluster._best = None
 
         if urgency == cluster._urgency:
             cluster._urgency = None
 
-        return nremoved, last, urgency
+        return nremoved, best, urgency
 
     def remove_notification(self, id, context=()):
         with self.lock:
             if isinstance(id, int):
+                if self.last and id == self.last.id:
+                    self.last = None
+
                 context = self.map.pop(id)
                 notification = self.get_context(context).notifications[id]
                 if notification.timer is not None:
                     notification.timer.cancel()
             else:
                 for leaf in self.get_context(context).notifications[id].leafs():
+                    if self.last and leaf.id == self.last.id:
+                        self.last = None
                     if leaf.timer is not None:
                         leaf.timer.cancel()
                     self.map.pop(leaf.id)

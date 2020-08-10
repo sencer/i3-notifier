@@ -74,6 +74,9 @@ class Notification:
     def formatted(self):
         return self.config.format_notification(self)
 
+    def single_line(self):
+        return self.config.single_line(self)
+
     def keys(self):
         return self.config.get_keys(self)
 
@@ -94,7 +97,7 @@ class Notification:
         return 1
 
     @property
-    def last(self):
+    def best(self):
         return self
 
     def leafs(self):
@@ -119,11 +122,11 @@ class Notification:
 
 
 class NotificationCluster:
-    __slots__ = "notifications", "_last", "_len", "_urgency"
+    __slots__ = "notifications", "_best", "_len", "_urgency"
 
     def __init__(self):
         self.notifications = dict()
-        self._last = None
+        self._best = None
         self._len = 0
         self._urgency = None
 
@@ -131,29 +134,29 @@ class NotificationCluster:
     def urgency(self):
 
         if self._urgency is None and self.notifications:
-            self._urgency = self.last.urgency
+            self._urgency = self.best.urgency
 
         return self._urgency or 0
 
     def formatted(self):
         if len(self) == 1:
-            return self.last.formatted()
+            return self.best.formatted()
 
-        dummy = self.last.strip()
+        dummy = self.best.strip()
         dummy.app_name = f"{dummy.app_name} ({len(self)})"
-        dummy.config = self.last.config
+        dummy.config = self.best.config
         return dummy.formatted()
 
     def reset(self):
         self._len = 0
         self._urgency = None
-        self._last = None
+        self._best = None
 
     def add(self, key, notification):
 
-        if self._last is None or notification.urgency >= self.last.urgency:
-            self._last = notification
-        self._urgency = self.last.urgency
+        if self._best is None or notification.urgency >= self.best.urgency:
+            self._best = notification
+        self._urgency = self.best.urgency
         self._len += 1
 
         if isinstance(key, int):
@@ -163,25 +166,22 @@ class NotificationCluster:
         if self.urgency == self.notifications[key].urgency:
             self._urgency = None
 
-        if self.notifications[key] == self.last:
-            self._last = None
+        if self.notifications[key] == self.best:
+            self._best = None
 
         self._len -= len(self.notifications[key])
 
         del self.notifications[key]
 
     @property
-    def last(self):
-        # This is called last for historical reasons, where I represented a cluster
-        # by the last notification in it. Now urgency trumps creation time. So this
-        # is kind of 'best' rather than 'last'
-        if self._last is None and self.notifications:
-            self._last = max(
+    def best(self):
+        if self._best is None and self.notifications:
+            self._best = max(
                 self.notifications.values(),
-                key=lambda x: (x.urgency, x.last.created_at),
-            ).last
+                key=lambda x: (x.urgency, x.best.created_at),
+            ).best
 
-        return self._last
+        return self._best
 
     def __len__(self):
         self._len = self._len or sum(len(n) for n in self.notifications.values())

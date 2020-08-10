@@ -52,7 +52,7 @@ class TestDataManager(unittest.TestCase):
     def test_add_notification(self):
         self.assertEqual(len(self.dm.tree), 7)
         self.assertEqual(len(self.dm.get_context(("A2",))), 2)
-        self.assertIs(self.dm.tree.last, self.notifications[-1])
+        self.assertIs(self.dm.tree.best, self.notifications[-1])
 
         notification = Notification(
             8, "A2", "icon", "1", "212", ["dflt"], 1595608250375722891, 1
@@ -61,8 +61,8 @@ class TestDataManager(unittest.TestCase):
         self.dm.add_notification(notification)
         self.assertEqual(len(self.dm.tree), 8)
         self.assertEqual(len(self.dm.tree.notifications["A2"]), 3)
-        self.assertIs(self.dm.get_context().last, notification)
-        self.assertIs(self.dm.get_context(("A2",)).last, notification)
+        self.assertIs(self.dm.get_context().best, notification)
+        self.assertIs(self.dm.get_context(("A2",)).best, notification)
 
     def test_overwrite_notification(self):
         notification = Notification(
@@ -72,38 +72,38 @@ class TestDataManager(unittest.TestCase):
         self.dm.add_notification(notification)
         self.assertEqual(len(self.dm.get_context()), len(self.notifications))
         self.assertEqual(len(self.dm.get_context(("A1",))), 4)
-        self.assertIs(self.dm.get_context().last, notification)
-        self.assertIs(self.dm.get_context(("A1",)).last, notification)
+        self.assertIs(self.dm.get_context().best, notification)
+        self.assertIs(self.dm.get_context(("A1",)).best, notification)
 
     def test_remove_notification(self):
         self.assertEqual(len(self.dm.get_context(("A1",))), 4)
         self.assertEqual(len(self.dm.tree), len(self.notifications))
 
-        self.assertIs(self.dm.get_context().last, self.notifications[6])
-        self.assertIs(self.dm.get_context(("A1",)).last, self.notifications[6])
+        self.assertIs(self.dm.get_context().best, self.notifications[6])
+        self.assertIs(self.dm.get_context(("A1",)).best, self.notifications[6])
 
         self.dm.remove_notification("1", ("A1",))
 
         self.assertEqual(len(self.dm.get_context(("A1",))), 1)
         self.assertEqual(len(self.dm.tree), 4)
 
-        self.assertIs(self.dm.tree.last, self.notifications[5])
-        self.assertIs(self.dm.get_context(("A1",)).last, self.notifications[2])
+        self.assertIs(self.dm.tree.best, self.notifications[5])
+        self.assertIs(self.dm.get_context(("A1",)).best, self.notifications[2])
 
     def test_remove_notification_integer(self):
         self.assertEqual(len(self.dm.get_context(("A1",))), 4)
         self.assertEqual(len(self.dm.tree), 7)
 
-        self.assertIs(self.dm.get_context().last, self.notifications[6])
-        self.assertIs(self.dm.get_context(("A1",)).last, self.notifications[6])
+        self.assertIs(self.dm.get_context().best, self.notifications[6])
+        self.assertIs(self.dm.get_context(("A1",)).best, self.notifications[6])
 
         self.dm.remove_notification(7)
 
         self.assertEqual(len(self.dm.get_context(("A1",))), 3)
         self.assertEqual(len(self.dm.tree), 6)
 
-        self.assertIs(self.dm.tree.last, self.notifications[5])
-        self.assertIs(self.dm.get_context(("A1",)).last, self.notifications[3])
+        self.assertIs(self.dm.tree.best, self.notifications[5])
+        self.assertIs(self.dm.get_context(("A1",)).best, self.notifications[3])
 
     def test_remove_shortcutted(self):
         self.dm.remove_notification(1)
