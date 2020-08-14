@@ -83,7 +83,7 @@ class NotificationFetcher(dbus.service.Object):
 
     @dbus.service.method(DBUS_PATH, in_signature="", out_signature="ssss")
     def GetServerInformation(self):
-        return "i3notifier", "github.com/sencer/i3-notifier", "0.14", "1.2"
+        return "i3notifier", "github.com/sencer/i3-notifier", "0.15", "1.2"
 
     @dbus.service.method(DBUS_PATH, in_signature="susssasa{ss}i", out_signature="u")
     def Notify(
@@ -219,11 +219,7 @@ class NotificationFetcher(dbus.service.Object):
         notifications = self.dm.get_context(self.context).notifications
 
         items = sorted(
-            [
-                (k, v) if len(v) > 1 else (v.best.id, v.best)
-                for k, v in notifications.items()
-            ],
-            key=lambda x: (-x[1].urgency, -x[1].best.created_at),
+            notifications.items(), key=lambda x: (-x[1].urgency, -x[1].best.created_at)
         )
 
         selected, op = self.gui.show_notifications([item[1] for item in items], row)
@@ -245,20 +241,20 @@ class NotificationFetcher(dbus.service.Object):
         key, notification = items[selected]
 
         if op == Operation.SELECT:
-            if isinstance(notification, Notification):
+            if len(notification) == 1:
                 logger.info("Selection is a singleton. Invoking default action.")
-                self.context = self.dm.map[notification.id]
+                self.context = self.dm.map[notification.best.id]
 
-                if self._process_hooks(notification, "pre_action_hooks"):
-                    self.ActionInvoked(notification.id, "default")
+                if self._process_hooks(notification.best, "pre_action_hooks"):
+                    self.ActionInvoked(notification.best.id, "default")
                 else:
                     logger.info(f"Skipping action for {notification.id}.")
 
-                if self._process_hooks(notification, "post_action_hooks"):
+                if self._process_hooks(notification.best, "post_action_hooks"):
                     self._remove_notification(
-                        notification.id, RemoveReason.ACTION_INVOKED
+                        notification.best.id, RemoveReason.ACTION_INVOKED
                     )
-                    self.NotificationClosed(notification.id, 2)
+                    self.NotificationClosed(notification.best.id, 2)
                 else:
                     logger.info(
                         f"Skipping CloseNotification (after action) for {notification.id}."
