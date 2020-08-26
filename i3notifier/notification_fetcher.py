@@ -83,7 +83,7 @@ class NotificationFetcher(dbus.service.Object):
 
     @dbus.service.method(DBUS_PATH, in_signature="", out_signature="ssss")
     def GetServerInformation(self):
-        return "i3notifier", "github.com/sencer/i3-notifier", "0.17", "1.2"
+        return "i3notifier", "github.com/sencer/i3-notifier", "0.18", "1.2"
 
     @dbus.service.method(DBUS_PATH, in_signature="susssasa{ss}i", out_signature="u")
     def Notify(
@@ -166,7 +166,8 @@ class NotificationFetcher(dbus.service.Object):
     @dbus.service.method(DBUS_PATH, in_signature="", out_signature="")
     def ShowNotifications(self):
         self.context = []
-        self._show_notifications()
+        if len(self.dm.tree) > 0:
+            self._show_notifications()
 
     @dbus.service.method(DBUS_PATH, in_signature="", out_signature="")
     def SignalNotificationCount(self):
