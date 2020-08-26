@@ -1,4 +1,4 @@
-# i3 Notification Manager
+# i3 Notification Manager (Requires a recent version of rofi)
 
 This is a notification manager for i3 desktop environment inspired by 
 [Rofication](https://github.com/DaveDavenport/Rofication). Like 
@@ -23,16 +23,10 @@ Also see the companion py3status module
 - Code is modular, should be straight forward to use another GUI rather 
   than Rofi; or another data structure rather than tree structure.
 
-## Grouping in action
+## What does it look like?
 
 ### Top Level
-![top level](/images/1.png)
-
-### Expand Whatsapp
-![level 1](/images/2.png)
-
-### Expand Person1
-![level 2](/images/3.png)
+![animation](/images/widget.gif)
 
 ## Usage
 
@@ -48,7 +42,14 @@ Then to launch GUI; bind this to a shortcut
 
     dbus-send --session --print-reply --dest=org.freedesktop.Notifications /org/freedesktop/Notifications org.freedesktop.Notifications.ShowNotifications
 
-Then use `Enter` to expand group / execute action; `Ctrl + Delete` to delete 
+## Keybindings
+
+`j`, `Down` or `Ctrl-N` : Choose next
+`k`, `Up` or `Ctrl-P` : Choose next
+`Enter`, `Space` or `Left Click` : Expand group and execute action
+`Delete` : Delete notification or group
+
+Then use `Enter` to expand group / execute action; `Delete` to delete 
 notification or notification group and `Esc` to exit.
 
 To get notification count & urgency

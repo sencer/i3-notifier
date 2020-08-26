@@ -1,0 +1,9 @@
+@import "common.rasi"
+
+#window {
+    background-color: #252525;
+    location: east;
+    anchor:   east;
+    border: 0 0 0 2px;
+    border-color: @red;
+}

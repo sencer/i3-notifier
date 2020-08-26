@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import importlib.util
 import logging
 import logging.handlers
 import os
@@ -14,42 +13,21 @@ from gi.repository import GLib
 from i3notifier.data_manager import DataManager
 from i3notifier.notification_fetcher import NotificationFetcher
 from i3notifier.rofi_gui import RofiGUI
-
-
-def get_user_config():
-
-    config_path = os.path.join(
-        os.environ["XDG_CONFIG_HOME"]
-        if "XDG_CONFIG_HOME" in os.environ
-        else os.path.join(os.environ["HOME"], ".config"),
-        "i3",
-        "i3_notifier_config.py",
-    )
-
-    if os.path.exists(config_path):
-        logger.info(f"Loading user config from {config_path}")
-        spec = importlib.util.spec_from_file_location("i3_notifier_config", config_path)
-        userconfig = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(userconfig)
-        return userconfig
-    logger.info(f"File not found: {config_path}")
+from i3notifier.user_config import get_user_config
 
 
 def run_daemon():
-    config_list = []
     userconfig = get_user_config()
-    if userconfig is not None:
-        config_list = userconfig.config_list
 
-    logger.info(f"Found {len(config_list)} configurations.")
+    logger.info(f"Found {len(userconfig.config_list)} configurations.")
 
     dump_path = "/tmp/i3-notifier.dump"
     logger.info(
         f"Notifications will be dumped to {dump_path} on graceful exit or when asked."
     )
-    data_manager = DataManager(config_list, dump_path)
+    data_manager = DataManager(userconfig.config_list, dump_path)
 
-    gui = RofiGUI()
+    gui = RofiGUI(theme=userconfig.theme)
 
     def dump_and_exit(n, f):
         data_manager.dump()

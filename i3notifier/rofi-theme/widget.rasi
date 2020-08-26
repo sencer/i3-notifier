@@ -1,0 +1,7 @@
+@import "common.rasi"
+
+#window {
+    background-color: #00000000;
+    location: center;
+    anchor:   center;
+}

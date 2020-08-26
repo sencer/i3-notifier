@@ -1,0 +1,75 @@
+configuration {
+  columns: 1;
+  eh: 2;
+  kb-accept-entry: "Control+j,Control+m,Return,KP_Enter,space";
+  kb-custom-1: "Delete,d";
+  kb-remove-char-forward: "";
+  kb-row-down: "Down,Control+n,j";
+  kb-row-up: "Up,Control+p,k";
+  me-accept-entry: "MousePrimary";
+  me-select-entry: "";
+  show-icons: true;
+}
+
+* {
+    background-color:  rgba(0,0,0,0);
+    dark: #1c1c1c;
+    lightred: #cc5533;
+    red:         #cd5c5c;
+    blue: #6495ed;
+    lightblue: #87ceeb;
+    lightwhite: #ddccbb;
+    bg: #4c4c4c;
+    bggroup: #4c4c6c;
+}
+
+#window {
+    height:   100%;
+    width: 20em;
+    text-color: @lightwhite;
+    children: [listview];
+}
+
+#listview {
+    padding: 10px;
+    dynamic: false;
+    lines: 0;
+    spacing: 10px;
+}
+
+#element {
+  padding: 10px;
+  border-radius: 3px;
+  background-color: @bg;
+  text-color: @lightwhite;
+}
+
+#element.active {
+    background-color: @bggroup;
+}
+
+#element.urgent {
+    background-color: @lightred;
+}
+
+#element.selected {
+    background-color: @blue;
+    text-color: @dark;
+}
+
+#element.selected.active {
+    background-color: @lightblue;
+    text-color: @dark;
+}
+
+#element.selected.urgent {
+    background-color: @red;
+    text-color: @dark;
+}
+
+#element-icon {
+  size: 2em;
+  horizontal-align: 0.5;
+  vertical-align: 0.5;
+  padding: 0 5px 0 0;
+}

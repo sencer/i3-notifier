@@ -49,3 +49,5 @@ config_list = [
     ChromeAppFactory("Instagram", "instagram.com", "twitter"),
     DefaultConfig,
 ]
+
+theme = "widget"  # or sidebar

@@ -7,6 +7,10 @@ i3notifier/data_manager.py
 i3notifier/notification.py
 i3notifier/notification_fetcher.py
 i3notifier/rofi_gui.py
+i3notifier/user_config.py
 i3notifier/utils.py
+i3notifier/rofi-theme/common.rasi
+i3notifier/rofi-theme/sidebar.rasi
+i3notifier/rofi-theme/widget.rasi
 tests/test_data_manager.py
 tests/test_notification.py
