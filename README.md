@@ -44,13 +44,10 @@ Then to launch GUI; bind this to a shortcut
 
 ## Keybindings
 
-`j`, `Down` or `Ctrl-N` : Choose next
-`k`, `Up` or `Ctrl-P` : Choose next
-`Enter`, `Space` or `Left Click` : Expand group and execute action
-`Delete` : Delete notification or group
-
-Then use `Enter` to expand group / execute action; `Delete` to delete 
-notification or notification group and `Esc` to exit.
+- `j`, `Down` or `Ctrl-N` : Choose next
+- `k`, `Up` or `Ctrl-P` : Choose next
+- `Enter`, `Space` or `Left Click` : Expand group and execute action
+- `Delete` : Delete notification or group
 
 To get notification count & urgency
 
