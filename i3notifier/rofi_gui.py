@@ -5,8 +5,9 @@ from enum import Enum
 
 class Operation(Enum):
     SELECT = 0
-    EXIT = 1
     DELETE = 10
+    EXIT = 11
+    EXIT_COMPLETELY = 1
 
 
 class RofiGUI:

@@ -229,6 +229,9 @@ class NotificationFetcher(dbus.service.Object):
             f", operation is {op}."
         )
 
+        if op == Operation.EXIT_COMPLETELY:
+            return
+
         if op == Operation.EXIT:
             if self.context:
                 self.context.pop()

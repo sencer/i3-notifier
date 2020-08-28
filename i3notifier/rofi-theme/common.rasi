@@ -1,14 +1,25 @@
 configuration {
   columns: 1;
   eh: 2;
-  kb-accept-entry: "Control+j,Control+m,Return,KP_Enter,space";
-  kb-custom-1: "Delete,d";
+  show-icons: true;
+
+  kb-remove-char-back: "";
+  kb-remove-word-back: "";
+  kb-toggle-case-sensitivity: "";
+  kb-remove-char-backward: "";
   kb-remove-char-forward: "";
+  me-select-entry: "";
+
+  kb-accept-entry: "Control+j,Control+m,Return,KP_Enter,space";
+  kb-cancel: "Control+Shift+bracketleft";
+  kb-cancel: "grave,Shift+BackSpace,Control+BackSpace";
+  kb-custom-1: "Delete,d";
+  kb-custom-2: "Escape,Control+bracketleft";
+  kb-custom-2: "Escape,Control+bracketleft,BackSpace";
   kb-row-down: "Down,Control+n,j";
   kb-row-up: "Up,Control+p,k";
-  me-accept-entry: "MousePrimary";
-  me-select-entry: "";
-  show-icons: true;
+  me-accept-entry: "MousePrimary,MouseDPrimary";
+
 }
 
 * {
