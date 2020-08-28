@@ -25,7 +25,6 @@ Also see the companion py3status module
 
 ## What does it look like?
 
-### Top Level
 ![animation](/images/widget.gif)
 
 ## Usage
