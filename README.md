@@ -43,9 +43,11 @@ Then to launch GUI; bind this to a shortcut
 
 ## Keybindings
 
-- `j`, `Down` or `Ctrl-N` : Choose next
+- `j`, `Down`, `Tab` or `Ctrl-N` : Choose next
 - `k`, `Up` or `Ctrl-P` : Choose previous
 - `Enter`, `Space` or `Left Click` : Expand group and execute action
+- `Esc`, `Ctrl+[` or `Backspace`: One level up or exit from top level
+- `` ` ``, `Ctrl+Backspace` or `Shift-Backspace`: Exit from any level.
 - `Delete` : Delete notification or group
 
 To get notification count & urgency
