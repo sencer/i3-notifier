@@ -1,13 +1,17 @@
+import logging
 import os.path
 import subprocess
 from enum import Enum
 
+logger = logging.getLogger(__name__)
+
 
 class Operation(Enum):
     SELECT = 0
+    EXIT_COMPLETELY = 1
     DELETE = 10
     EXIT = 11
-    EXIT_COMPLETELY = 1
+    SELECT_ALT = 12
 
 
 class RofiGUI:
@@ -63,5 +67,6 @@ class RofiGUI:
         maybe_selection = (lambda x: int(x) if x else None)(
             proc.stdout.read().decode("utf-8")
         )
-        operation = Operation(proc.wait())
-        return maybe_selection, operation
+        operation = proc.wait()
+        logger.info(f"Operation {operation}")
+        return maybe_selection, Operation(operation)

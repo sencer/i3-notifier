@@ -244,8 +244,8 @@ class NotificationFetcher(dbus.service.Object):
 
         key, notification = items[selected]
 
-        if op == Operation.SELECT:
-            if len(notification) == 1:
+        if op == Operation.SELECT or op == Operation.SELECT_ALT:
+            if len(notification) == 1 or op == Operation.SELECT_ALT:
                 logger.info("Selection is a singleton. Invoking default action.")
                 self.context = self.dm.map[notification.best.id]
 
