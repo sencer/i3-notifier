@@ -45,7 +45,7 @@ Then to launch GUI; bind this to a shortcut
 ## Keybindings
 
 - `j`, `Down` or `Ctrl-N` : Choose next
-- `k`, `Up` or `Ctrl-P` : Choose next
+- `k`, `Up` or `Ctrl-P` : Choose previous
 - `Enter`, `Space` or `Left Click` : Expand group and execute action
 - `Delete` : Delete notification or group
 
