@@ -137,3 +137,8 @@ class DataManager(threading.Thread):
             [notification.strip() for notification in self.tree.leafs()],
             open(self.dump_path, "wb"),
         )
+
+    def cancel_timers(self):
+        for notification in self.tree.leafs():
+            if notification.timer is not None:
+                notification.timer.cancel()
