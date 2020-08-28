@@ -25,6 +25,10 @@ def strip_tags(data):
     return s.get_data()
 
 
+def strip_tags_and_escape(data):
+    return html.escape(strip_tags(data))
+
+
 class RunAsync(threading.Thread):
 
     __slots__ = "args", "kwargs", "closure"

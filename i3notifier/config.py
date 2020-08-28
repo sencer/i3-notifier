@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from .utils import strip_tags
+from .utils import strip_tags, strip_tags_and_escape
 
 
 class Config:
@@ -32,14 +32,14 @@ class Config:
     def format_notification(notification):
         time = datetime.fromtimestamp(notification.created_at // 1e9).strftime("%H:%M")
         # Format the notification
-        text = f"<b>{strip_tags(notification.summary)}</b> "
+        text = f"<b>{strip_tags_and_escape(notification.summary)}</b> "
         text += f"<small>{time}</small>"
-        text += f"<small> {notification.app_name}</small>"
+        text += f"<small> {strip_tags_and_escape(notification.app_name)}</small>"
 
         if notification.body:
             text += (
                 "\n<i>"
-                + strip_tags(notification.body.replace("\n", "").strip())
+                + strip_tags_and_escape(notification.body.replace("\n", "").strip())
                 + "</i>"
             )
 
