@@ -51,6 +51,7 @@ Then to launch GUI; bind this to a shortcut
 `Esc`, `Ctrl+[` or `Backspace`                | One level up or exit from top level
 `` ` ``, `Ctrl+Backspace` or `Shift-Backspace`| Exit from any level.
 `Delete`                                      | Delete notification or group
+`Ctrl+Delete`, `Shift+Delete`                 | Delete single notification
 
 To get notification count & urgency
 

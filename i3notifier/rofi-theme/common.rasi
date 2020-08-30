@@ -10,12 +10,14 @@ configuration {
   kb-remove-word-back: "";
   kb-toggle-case-sensitivity: "";
   me-select-entry: "";
+  kb-delete-entry: "";
 
   kb-accept-entry: "Control+j,Control+m,Return,KP_Enter,space";
   kb-cancel: "grave,Shift+BackSpace,Control+BackSpace";
   kb-custom-1: "Delete,d";
   kb-custom-2: "Escape,Control+bracketleft,BackSpace";
   kb-custom-3: "Shift+Return";
+  kb-custom-4: "Shift+Delete,Control+Delete";
   kb-row-down: "Down,Control+n,j";
   kb-row-up: "Up,Control+p,k";
   me-accept-entry: "MousePrimary,MouseDPrimary";

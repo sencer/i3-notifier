@@ -12,6 +12,7 @@ class Operation(Enum):
     DELETE = 10
     EXIT = 11
     SELECT_ALT = 12
+    DELETE_ALT = 13
 
 
 class RofiGUI:

@@ -267,8 +267,9 @@ class NotificationFetcher(dbus.service.Object):
                 logger.info("Selection is a cluster. Expanding.")
                 self.context.append(key)
                 self._show_notifications()
-        elif op == Operation.DELETE:
-            context_changed = self._remove_notification(key, RemoveReason.USER_DELETED)
+        elif op == Operation.DELETE or op == Operation.DELETE_ALT:
+            key_ = key if op == Operation.DELETE else notification.best.id
+            context_changed = self._remove_notification(key_, RemoveReason.USER_DELETED)
 
             row = 0 if context_changed else selected - (selected == len(notifications))
 
