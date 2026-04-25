@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-import logging
-
 import i3ipc
 
 
@@ -14,4 +11,9 @@ def switch():
     i3.main(3)
 
 
-switch()
+def main():
+    switch()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "i3-notifier"
+version = "0.19"
+description = "A notification daemon for i3"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [
+    { name = "Sencer Selcuk" }
+]
+dependencies = [
+    "dbus-python==1.2.16",
+    "pyxdg==0.26",
+    "python-daemon==2.2.4",
+    "i3ipc"
+]
+
+[project.scripts]
+i3-notifier = "i3notifier.main:main"
+switch-to-urgent = "i3notifier.switch_to_urgent:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["i3notifier"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "i3notifier",
+    "tests",
+    "LICENSE",
+    "README.md",
+    "MANIFEST.in",
+    "examples",
+    "images"
+]

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import argparse
 import dbus
 import logging
@@ -16,6 +15,9 @@ from i3notifier.data_manager import DataManager
 from i3notifier.notification_fetcher import NotificationFetcher
 from i3notifier.rofi_gui import RofiGUI
 from i3notifier.user_config import get_user_config
+
+logger = logging.getLogger("i3notifier")
+files_preserve = []
 
 
 def run_daemon(config_path=None, nodaemon=False):
@@ -82,19 +84,41 @@ def run_daemon(config_path=None, nodaemon=False):
             run()
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description="i3-notifier daemon")
-    parser.add_argument("--debug", action="store_true", help="Enable debug logging. Logs will be written to /tmp/i3-notifier.log.")
-    parser.add_argument("--config", "-c", help="Path to custom user configuration file. Defaults to $XDG_CONFIG_HOME/i3/i3_notifier_config.py or ~/.config/i3/i3_notifier_config.py if not specified.")
-    parser.add_argument("--nodaemon", action="store_true", help="Run in the foreground instead of as a daemon.")
-    parser.add_argument("--dump", action="store_true", help="Command the running daemon to dump notifications to file and exit.")
-    parser.add_argument("--kill", action="store_true", help="Kill the running daemon instance and exit.")
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging. Logs will be written to /tmp/i3-notifier.log.",
+    )
+    parser.add_argument(
+        "--config",
+        "-c",
+        help="Path to custom user configuration file. Defaults to $XDG_CONFIG_HOME/i3/i3_notifier_config.py or ~/.config/i3/i3_notifier_config.py if not specified.",
+    )
+    parser.add_argument(
+        "--nodaemon",
+        action="store_true",
+        help="Run in the foreground instead of as a daemon.",
+    )
+    parser.add_argument(
+        "--dump",
+        action="store_true",
+        help="Command the running daemon to dump notifications to file and exit.",
+    )
+    parser.add_argument(
+        "--kill",
+        action="store_true",
+        help="Kill the running daemon instance and exit.",
+    )
     args = parser.parse_args()
 
     if args.dump:
         bus = dbus.SessionBus()
         try:
-            obj = bus.get_object("org.freedesktop.Notifications", "/org/freedesktop/Notifications")
+            obj = bus.get_object(
+                "org.freedesktop.Notifications", "/org/freedesktop/Notifications"
+            )
             obj.DumpNotifications(dbus_interface="org.freedesktop.Notifications")
             print("Notifications dumped to /tmp/i3-notifier.dump")
             sys.exit(0)
@@ -122,8 +146,7 @@ if __name__ == "__main__":
             print("i3-notifier is not running (pid file not found).")
             sys.exit(0)
 
-    logger = logging.getLogger("i3notifier")
-    files_preserve = []
+    global files_preserve
 
     if args.debug:
         if args.nodaemon:
@@ -133,9 +156,15 @@ if __name__ == "__main__":
             files_preserve.append(handler.stream.fileno())
 
         handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+            logging.Formatter(
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            )
         )
         logger.addHandler(handler)
         logger.setLevel(logging.INFO)
 
     run_daemon(config_path=args.config, nodaemon=args.nodaemon)
+
+
+if __name__ == "__main__":
+    main()
