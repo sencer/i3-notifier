@@ -10,15 +10,16 @@ class UserConfig:
     theme = None
 
 
-def read_user_config():
-
-    config_path = os.path.join(
-        os.environ["XDG_CONFIG_HOME"]
-        if "XDG_CONFIG_HOME" in os.environ
-        else os.path.join(os.environ["HOME"], ".config"),
-        "i3",
-        "i3_notifier_config.py",
-    )
+def read_user_config(config_path=None):
+    explicit = config_path is not None
+    if config_path is None:
+        config_path = os.path.join(
+            os.environ["XDG_CONFIG_HOME"]
+            if "XDG_CONFIG_HOME" in os.environ
+            else os.path.join(os.environ["HOME"], ".config"),
+            "i3",
+            "i3_notifier_config.py",
+        )
 
     if os.path.exists(config_path):
         logger.info(f"Loading user config from {config_path}")
@@ -27,11 +28,14 @@ def read_user_config():
         spec.loader.exec_module(userconfig)
         return userconfig
     logger.info(f"File not found: {config_path}")
+    if explicit:
+        raise FileNotFoundError(f"Config file not found: {config_path}")
+    return None
 
 
-def get_user_config():
+def get_user_config(config_path=None):
     userconfig = UserConfig()
-    userconfig_ = read_user_config()
+    userconfig_ = read_user_config(config_path)
 
     if userconfig_ is not None:
         if hasattr(userconfig_, "config_list"):

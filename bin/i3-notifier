@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import argparse
+import dbus
 import logging
 import logging.handlers
 import os
@@ -16,8 +18,12 @@ from i3notifier.rofi_gui import RofiGUI
 from i3notifier.user_config import get_user_config
 
 
-def run_daemon():
-    userconfig = get_user_config()
+def run_daemon(config_path=None, nodaemon=False):
+    try:
+        userconfig = get_user_config(config_path)
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
     logger.info(f"Found {len(userconfig.config_list)} configurations.")
 
@@ -47,12 +53,11 @@ def run_daemon():
                 "i3-notifier is not running, but a lock file exists. Cleaning up."
             )
 
-    with daemon.DaemonContext(
-        pidfile=daemon.pidfile.PIDLockFile(pid_file),
-        signal_map={signal.SIGTERM: dump_and_exit},
-        files_preserve=files_preserve,
-    ):
+    def run():
         logger.info(f"Creating lock file {pid_file}")
+        with open(pid_file, "w") as f:
+            f.write(str(os.getpid()))
+
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
         fetcher = NotificationFetcher(data_manager, gui)
 
@@ -62,20 +67,75 @@ def run_daemon():
         except:
             logger.info("Exiting Glib.MainLoop")
             data_manager.dump()
+        finally:
+            if os.path.exists(pid_file):
+                os.remove(pid_file)
+
+    if nodaemon:
+        run()
+    else:
+        with daemon.DaemonContext(
+            pidfile=daemon.pidfile.PIDLockFile(pid_file),
+            signal_map={signal.SIGTERM: dump_and_exit},
+            files_preserve=files_preserve,
+        ):
+            run()
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="i3-notifier daemon")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging. Logs will be written to /tmp/i3-notifier.log.")
+    parser.add_argument("--config", "-c", help="Path to custom user configuration file. Defaults to $XDG_CONFIG_HOME/i3/i3_notifier_config.py or ~/.config/i3/i3_notifier_config.py if not specified.")
+    parser.add_argument("--nodaemon", action="store_true", help="Run in the foreground instead of as a daemon.")
+    parser.add_argument("--dump", action="store_true", help="Command the running daemon to dump notifications to file and exit.")
+    parser.add_argument("--kill", action="store_true", help="Kill the running daemon instance and exit.")
+    args = parser.parse_args()
+
+    if args.dump:
+        bus = dbus.SessionBus()
+        try:
+            obj = bus.get_object("org.freedesktop.Notifications", "/org/freedesktop/Notifications")
+            obj.DumpNotifications(dbus_interface="org.freedesktop.Notifications")
+            print("Notifications dumped to /tmp/i3-notifier.dump")
+            sys.exit(0)
+        except dbus.exceptions.DBusException as e:
+            print(f"Error communicating with daemon: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    if args.kill:
+        pid_file = "/tmp/i3-notifier.pid"
+        if os.path.exists(pid_file):
+            try:
+                with open(pid_file) as f:
+                    pid = int(f.read().strip())
+                os.kill(pid, signal.SIGTERM)
+                print(f"Sent SIGTERM to process {pid}")
+                sys.exit(0)
+            except ProcessLookupError:
+                print(f"Process {pid} not found. Cleaning up pid file.")
+                os.remove(pid_file)
+                sys.exit(0)
+            except Exception as e:
+                print(f"Error killing process: {e}", file=sys.stderr)
+                sys.exit(1)
+        else:
+            print("i3-notifier is not running (pid file not found).")
+            sys.exit(0)
+
     logger = logging.getLogger("i3notifier")
     files_preserve = []
 
-    if len(sys.argv) > 1 and sys.argv[1] == "--debug":
-        file_logger = logging.FileHandler("/tmp/i3-notifier.log", "w",)
-        file_logger.setFormatter(
+    if args.debug:
+        if args.nodaemon:
+            handler = logging.StreamHandler(sys.stderr)
+        else:
+            handler = logging.FileHandler("/tmp/i3-notifier.log", "w")
+            files_preserve.append(handler.stream.fileno())
+
+        handler.setFormatter(
             logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         )
-        files_preserve.append(file_logger.stream.fileno())
-
-        logger.addHandler(file_logger)
+        logger.addHandler(handler)
         logger.setLevel(logging.INFO)
 
-    run_daemon()
+    run_daemon(config_path=args.config, nodaemon=args.nodaemon)
