@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "i3-notifier"
-version = "0.21"
+version = "0.22"
 description = "A notification daemon for i3"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -34,3 +34,15 @@ include = [
     "examples",
     "images"
 ]
+
+[tool.ruff]
+indent-width = 2
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+

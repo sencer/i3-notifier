@@ -7,67 +7,64 @@ logger = logging.getLogger(__name__)
 
 
 class Operation(Enum):
-    SELECT = 0
-    EXIT_COMPLETELY = 1
-    DELETE = 10
-    EXIT = 11
-    SELECT_ALT = 12
-    DELETE_ALT = 13
+  SELECT = 0
+  EXIT_COMPLETELY = 1
+  DELETE = 10
+  EXIT = 11
+  SELECT_ALT = 12
+  DELETE_ALT = 13
 
 
 class RofiGUI:
+  _separator = b"\x01"
+  _args = [
+    "-dmenu",
+    "-markup-rows",
+    "-i",
+    "-format",
+    "i",
+    "-sep",
+    r"\x01",
+  ]
 
-    _separator = b"\x01"
-    _args = [
-        "-dmenu",
-        "-markup-rows",
-        "-i",
-        "-format",
-        "i",
-        "-sep",
-        r"\x01",
-    ]
+  __slots__ = "cmd"
 
-    __slots__ = "cmd"
+  def __init__(self, *args, theme=None, cmd=None):
+    self.cmd = cmd or "rofi"
+    self._args.extend(args)
+    if theme is not None:
+      self._args.extend(["-theme", f"{os.path.dirname(__file__)}/rofi-theme/{theme}"])
 
-    def __init__(self, *args, theme=None, cmd=None):
-        self.cmd = cmd or "rofi"
-        self._args.extend(args)
-        if theme is not None:
-            self._args.extend(
-                ["-theme", f"{os.path.dirname(__file__)}/rofi-theme/{theme}"]
-            )
+  def show_notifications(self, notifications, row=0):
 
-    def show_notifications(self, notifications, row=0):
+    formatted_notifications = []
+    urgent = []
+    active = []
+    for i, notification in enumerate(notifications):
+      formatted_notifications.append(notification.formatted())
 
-        formatted_notifications = []
-        urgent = []
-        active = []
-        for i, notification in enumerate(notifications):
-            formatted_notifications.append(notification.formatted())
+      if notification.urgency == 2:
+        urgent.append(str(i))
 
-            if notification.urgency == 2:
-                urgent.append(str(i))
+      if len(notification) > 1:
+        active.append(str(i))
 
-            if len(notification) > 1:
-                active.append(str(i))
+    proc = subprocess.Popen(
+      [self.cmd]
+      + self._args
+      + ["-selected-row", str(row)]
+      + (["-u", ",".join(urgent)] if urgent else [])
+      + (["-a", ",".join(active)] if active else []),
+      stdin=subprocess.PIPE,
+      stdout=subprocess.PIPE,
+    )
 
-        proc = subprocess.Popen(
-            [self.cmd]
-            + self._args
-            + ["-selected-row", str(row)]
-            + (["-u", ",".join(urgent)] if urgent else [])
-            + (["-a", ",".join(active)] if active else []),
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-        )
+    proc.stdin.write(self._separator.join(formatted_notifications))
+    proc.stdin.close()
 
-        proc.stdin.write(self._separator.join(formatted_notifications))
-        proc.stdin.close()
-
-        maybe_selection = (lambda x: int(x) if x else None)(
-            proc.stdout.read().decode("utf-8")
-        )
-        operation = proc.wait()
-        logger.info(f"Operation {operation}")
-        return maybe_selection, Operation(operation)
+    maybe_selection = (lambda x: int(x) if x else None)(
+      proc.stdout.read().decode("utf-8")
+    )
+    operation = proc.wait()
+    logger.info(f"Operation {operation}")
+    return maybe_selection, Operation(operation)
