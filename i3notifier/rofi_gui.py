@@ -17,21 +17,19 @@ class Operation(Enum):
 
 class RofiGUI:
   _separator = b"\x01"
-  _args = [
-    "-dmenu",
-    "-markup-rows",
-    "-i",
-    "-format",
-    "i",
-    "-sep",
-    r"\x01",
-  ]
-
-  __slots__ = "cmd"
+  __slots__ = "cmd", "_args"
 
   def __init__(self, *args, theme=None, cmd=None):
     self.cmd = cmd or "rofi"
-    self._args.extend(args)
+    self._args = [
+      "-dmenu",
+      "-markup-rows",
+      "-i",
+      "-format",
+      "i",
+      "-sep",
+      r"\x01",
+    ] + list(args)
     if theme is not None:
       self._args.extend(["-theme", f"{os.path.dirname(__file__)}/rofi-theme/{theme}"])
 

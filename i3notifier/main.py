@@ -7,9 +7,7 @@ import sys
 
 import daemon
 import daemon.pidfile
-import dbus
-import dbus.mainloop.glib
-from gi.repository import GLib
+from gi.repository import GLib, Gio
 
 from i3notifier.data_manager import DataManager
 from i3notifier.notification_fetcher import NotificationFetcher
@@ -38,6 +36,13 @@ def run_daemon(config_path=None, nodaemon=False):
   )
   data_manager = DataManager(userconfig.config_list, dump_path)
 
+  def excepthook(type, value, traceback):
+    logger.error("Unhandled exception:", exc_info=(type, value, traceback))
+    data_manager.dump()
+    sys.__excepthook__(type, value, traceback)
+
+  sys.excepthook = excepthook
+
   gui = RofiGUI(theme=userconfig.theme)
 
   def dump_and_exit(n, f):
@@ -58,11 +63,6 @@ def run_daemon(config_path=None, nodaemon=False):
       logger.info("i3-notifier is not running, but a lock file exists. Cleaning up.")
 
   def run():
-    logger.info(f"Creating lock file {pid_file}")
-    with open(pid_file, "w") as f:
-      f.write(str(os.getpid()))
-
-    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
     NotificationFetcher(data_manager, gui)
 
     logger.info("Starting i3-notifier.")
@@ -76,6 +76,9 @@ def run_daemon(config_path=None, nodaemon=False):
         os.remove(pid_file)
 
   if nodaemon:
+    logger.info(f"Creating lock file {pid_file}")
+    with open(pid_file, "w") as f:
+      f.write(str(os.getpid()))
     run()
   else:
     with daemon.DaemonContext(
@@ -120,38 +123,63 @@ def main():
   args = parser.parse_args()
 
   if args.dump:
-    bus = dbus.SessionBus()
     try:
-      obj = bus.get_object(
-        "org.freedesktop.Notifications", "/org/freedesktop/Notifications"
+      bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+      proxy = Gio.DBusProxy.new_sync(
+        bus,
+        Gio.DBusProxyFlags.NONE,
+        None,
+        "org.freedesktop.Notifications",
+        "/org/freedesktop/Notifications",
+        "org.freedesktop.Notifications",
+        None,
       )
-      obj.DumpNotifications(dbus_interface="org.freedesktop.Notifications")
-      print("Notifications dumped to /tmp/i3-notifier.dump")
+      proxy.call_sync(
+        "DumpNotifications", None, Gio.DBusCallFlags.NO_AUTO_START, 500, None
+      )
+      print("Notifications dumped.")
       sys.exit(0)
-    except dbus.exceptions.DBusException as e:
+    except GLib.Error as e:
       print(f"Error communicating with daemon: {e}", file=sys.stderr)
       sys.exit(1)
 
   if args.kill:
-    runtime_dir = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
-    pid_file = os.path.join(runtime_dir, "i3-notifier.pid")
-    if os.path.exists(pid_file):
-      try:
-        with open(pid_file) as f:
-          pid = int(f.read().strip())
-        os.kill(pid, signal.SIGTERM)
-        print(f"Sent SIGTERM to process {pid}")
-        sys.exit(0)
-      except ProcessLookupError:
-        print(f"Process {pid} not found. Cleaning up pid file.")
-        os.remove(pid_file)
-        sys.exit(0)
-      except Exception as e:
-        print(f"Error killing process: {e}", file=sys.stderr)
-        sys.exit(1)
-    else:
-      print("i3-notifier is not running (pid file not found).")
+    try:
+      bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+      proxy = Gio.DBusProxy.new_sync(
+        bus,
+        Gio.DBusProxyFlags.NONE,
+        None,
+        "org.freedesktop.Notifications",
+        "/org/freedesktop/Notifications",
+        "org.freedesktop.Notifications",
+        None,
+      )
+      proxy.call_sync("Quit", None, Gio.DBusCallFlags.NO_AUTO_START, 500, None)
+      print("i3-notifier stopped successfully.")
       sys.exit(0)
+    except GLib.Error as e:
+      logger.info(f"D-Bus Quit failed: {e}. Falling back to SIGTERM.")
+      
+      runtime_dir = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
+      pid_file = os.path.join(runtime_dir, "i3-notifier.pid")
+      if os.path.exists(pid_file):
+        try:
+          with open(pid_file) as f:
+            pid = int(f.read().strip())
+          os.kill(pid, signal.SIGTERM)
+          print(f"Sent SIGTERM to process {pid}")
+          sys.exit(0)
+        except ProcessLookupError:
+          print(f"Process {pid} not found. Cleaning up pid file.")
+          os.remove(pid_file)
+          sys.exit(0)
+        except Exception as e:
+          print(f"Error killing process: {e}", file=sys.stderr)
+          sys.exit(1)
+      else:
+        print("i3-notifier is not running (pid file not found).")
+        sys.exit(0)
 
   global files_preserve
 

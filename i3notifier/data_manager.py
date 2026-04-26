@@ -7,11 +7,10 @@ from .notification import Notification, NotificationCluster
 logger = logging.getLogger(__name__)
 
 
-class DataManager(threading.Thread):
+class DataManager:
   __slots__ = "tree", "map", "lock", "configs", "dump_path", "last"
 
   def __init__(self, configs, dump_path):
-    super().__init__()
 
     self.tree = NotificationCluster()
     self.map = dict()
@@ -115,7 +114,6 @@ class DataManager(threading.Thread):
           self.map.pop(leaf.id)
 
       DataManager._recursive_remove_notification(self.tree, [*context, id], i=0)
-      self.dump()
 
   def get_context_by_id(self, id):
     return self.get_context(self.map[id])

@@ -4,15 +4,16 @@ import os.path
 import threading
 import time
 
-import dbus
-import dbus.service
+from gi.repository import GLib, Gio
 import xdg.BaseDirectory
 from xdg.DesktopEntry import DesktopEntry
 
-from .notification import Notification
-from .rofi_gui import Operation
+from i3notifier.notification import Notification
+from i3notifier.rofi_gui import Operation
 
-DBUS_PATH = "org.freedesktop.Notifications"
+BUS_NAME = "org.freedesktop.Notifications"
+OBJECT_PATH = "/org/freedesktop/Notifications"
+INTERFACE_NAME = "org.freedesktop.Notifications"
 
 logger = logging.getLogger(__name__)
 
@@ -40,57 +41,147 @@ class NotificationUpdateMode(enum.Enum):
   MANUAL = 2
 
 
-class NotificationFetcher(dbus.service.Object):
-  __slots__ = "dm", "gui", "context"
-  _id = 1
+INTROSPECTION_XML = """
+<node>
+  <interface name="org.freedesktop.Notifications">
+    <method name="GetCapabilities">
+      <arg direction="out" type="as"/>
+    </method>
+    <method name="Notify">
+      <arg direction="in" type="s" name="app_name"/>
+      <arg direction="in" type="u" name="replaces_id"/>
+      <arg direction="in" type="s" name="app_icon"/>
+      <arg direction="in" type="s" name="summary"/>
+      <arg direction="in" type="s" name="body"/>
+      <arg direction="in" type="as" name="actions"/>
+      <arg direction="in" type="a{sv}" name="hints"/>
+      <arg direction="in" type="i" name="expire_timeout"/>
+      <arg direction="out" type="u" name="id"/>
+    </method>
+    <method name="CloseNotification">
+      <arg direction="in" type="u" name="id"/>
+    </method>
+    <method name="GetServerInformation">
+      <arg direction="out" type="s" name="name"/>
+      <arg direction="out" type="s" name="vendor"/>
+      <arg direction="out" type="s" name="version"/>
+      <arg direction="out" type="s" name="spec_version"/>
+    </method>
+    <signal name="NotificationClosed">
+      <arg type="u" name="id"/>
+      <arg type="u" name="reason"/>
+    </signal>
+    <signal name="ActionInvoked">
+      <arg type="u" name="id"/>
+      <arg type="s" name="action_key"/>
+    </signal>
 
+    <!-- Custom methods -->
+    <method name="DumpNotifications">
+      <arg direction="out" type="s"/>
+    </method>
+    <method name="ShowNotificationCount">
+      <arg direction="out" type="u"/>
+      <arg direction="out" type="u"/>
+    </method>
+    <method name="ShowNotifications"/>
+    <method name="SignalNotificationCount"/>
+    <method name="Quit"/>
+
+    <signal name="NotificationsUpdated">
+      <arg type="u" name="mode"/>
+      <arg type="u" name="num"/>
+      <arg type="u" name="urgency"/>
+      <arg type="s" name="single_line"/>
+    </signal>
+  </interface>
+</node>
+"""
+
+
+class NotificationFetcher:
   def __init__(self, dm, gui):
     self.dm = dm
     self.gui = gui
     self.context = []
+    self._id = 1
 
     if len(self.dm.tree):
       self._id = self.dm.tree.best.id + 1
 
-    name = dbus.service.BusName(DBUS_PATH, dbus.SessionBus())
-    super().__init__(name, "/org/freedesktop/Notifications")
+    self.node_info = Gio.DBusNodeInfo.new_for_xml(INTROSPECTION_XML)
+    self.connection = Gio.bus_get_sync(Gio.BusType.SESSION, None)
 
-  @dbus.service.method(DBUS_PATH, in_signature="u", out_signature="")
-  def CloseNotification(self, id):
+    self.connection.register_object(
+      OBJECT_PATH,
+      self.node_info.interfaces[0],
+      self.handle_method_call,
+      None,
+      None,
+    )
 
-    notification = self.dm.get_context_by_id(id).notifications[id]
-    logger.info(f"Received CloseNotification request for {notification}")
+    Gio.bus_own_name_on_connection(
+      self.connection, BUS_NAME, Gio.BusNameOwnerFlags.NONE, None, None
+    )
 
-    if self._process_hooks(notification, "pre_close_hooks"):
-      self.NotificationClosed(id, 3)
-    else:
-      logger.info(f"Didn't send NotificationClosed signal for {id}")
+  def handle_method_call(
+    self,
+    connection,
+    sender,
+    object_path,
+    interface_name,
+    method_name,
+    parameters,
+    invocation,
+  ):
+    args = parameters.unpack()
+    if method_name == "GetCapabilities":
+      invocation.return_value(
+        GLib.Variant(
+          "(as)", [["actions", "body", "body-markup", "icon-static", "persistence"]]
+        )
+      )
+    elif method_name == "Notify":
+      (
+        app_name,
+        replaces_id,
+        app_icon,
+        summary,
+        body,
+        actions,
+        hints,
+        expire_timeout,
+      ) = args
+      id = self.Notify(
+        app_name, replaces_id, app_icon, summary, body, actions, hints, expire_timeout
+      )
+      invocation.return_value(GLib.Variant("(u)", [id]))
+    elif method_name == "CloseNotification":
+      (id,) = args
+      self.CloseNotification(id)
+      invocation.return_value(None)
+    elif method_name == "GetServerInformation":
+      invocation.return_value(
+        GLib.Variant(
+          "(ssss)", ("i3notifier", "github.com/sencer/i3-notifier", "0.23", "1.2")
+        )
+      )
+    elif method_name == "DumpNotifications":
+      res = self.DumpNotifications()
+      invocation.return_value(GLib.Variant("(s)", [res]))
+    elif method_name == "ShowNotificationCount":
+      count, urgency = self.ShowNotificationCount()
+      invocation.return_value(GLib.Variant("(uu)", [count, urgency]))
+    elif method_name == "ShowNotifications":
+      self.ShowNotifications()
+      invocation.return_value(None)
+    elif method_name == "SignalNotificationCount":
+      self.SignalNotificationCount()
+      invocation.return_value(None)
+    elif method_name == "Quit":
+      invocation.return_value(None)
+      self.Quit()
 
-    if self._process_hooks(notification, "post_close_hooks"):
-      self._remove_notification(id, RemoveReason.APP_REQUESTED)
-    else:
-      logger.info(f"Didn't delete notification {id}.")
-
-  @dbus.service.method(DBUS_PATH, in_signature="", out_signature="s")
-  def DumpNotifications(self):
-    self.dm.dump()
-    return str(self.dm.tree)
-
-  @dbus.service.method(DBUS_PATH, in_signature="", out_signature="as")
-  def GetCapabilities(self):
-    return [
-      "actions",
-      "body",
-      "body-markup",
-      "icon-static",
-      "persistence",
-    ]
-
-  @dbus.service.method(DBUS_PATH, in_signature="", out_signature="ssss")
-  def GetServerInformation(self):
-    return "i3notifier", "github.com/sencer/i3-notifier", "0.22", "1.2"
-
-  @dbus.service.method(DBUS_PATH, in_signature="susssasa{ss}i", out_signature="u")
   def Notify(
     self,
     app_name,
@@ -142,20 +233,23 @@ class NotificationFetcher(dbus.service.Object):
     )
 
     if expire_timeout > 0:
-      notification.expires_at = notification.created_at + expire_timeout
+      # Fix mixed units: expire_timeout is in ms, created_at is in ns
+      notification.expires_at = notification.created_at + (expire_timeout * 1000000)
 
     if "urgency" in hints:
-      notification.urgency = (
-        int(hints["urgency"])
-        if isinstance(hints["urgency"], str)
-        else hints["urgency"].real
-      )
+      urgency = hints["urgency"]
+      if hasattr(urgency, "real"):
+        notification.urgency = int(urgency.real)
+      else:
+        notification.urgency = int(urgency)
 
     self.dm.add_notification(notification)
 
     if notification.expires and notification.expires_at:
+      # Fix mixed units: (ns - ns) / 1e9 = seconds
+      delay = (notification.expires_at - notification.created_at) / 1000000000
       notification.timer = threading.Timer(
-        (notification.expires_at - notification.created_at) / 1000,
+        delay,
         self._remove_notification,
         (notification.id, RemoveReason.EXPIRED),
       )
@@ -164,33 +258,74 @@ class NotificationFetcher(dbus.service.Object):
     self._notifications_updated(NotificationUpdateMode.ADDED.value)
     return id
 
-  @dbus.service.method(DBUS_PATH, in_signature="", out_signature="uu")
+  def CloseNotification(self, id):
+    notification = self.dm.get_context_by_id(id).notifications[id]
+    logger.info(f"Received CloseNotification request for {notification}")
+
+    if self._process_hooks(notification, "pre_close_hooks"):
+      self.NotificationClosed(id, 3)
+    else:
+      logger.info(f"Didn't send NotificationClosed signal for {id}")
+
+    if self._process_hooks(notification, "post_close_hooks"):
+      self._remove_notification(id, RemoveReason.APP_REQUESTED)
+    else:
+      logger.info(f"Didn't delete notification {id}.")
+
+  def DumpNotifications(self):
+    self.dm.dump()
+    return str(self.dm.tree)
+
   def ShowNotificationCount(self):
     return len(self.dm.tree), self.dm.tree.urgency or 0
 
-  @dbus.service.method(DBUS_PATH, in_signature="", out_signature="")
   def ShowNotifications(self):
     self.context = []
     if len(self.dm.tree) > 0:
       self._show_notifications()
 
-  @dbus.service.method(DBUS_PATH, in_signature="", out_signature="")
   def SignalNotificationCount(self):
     self._notifications_updated(NotificationUpdateMode.MANUAL.value)
 
+  def Quit(self):
+    logger.info("Quit requested via DBus.")
+    self.dm.dump()
+    self.dm.cancel_timers()
+    import sys
+
+    sys.exit(0)
+
   # Signals
 
-  @dbus.service.signal(DBUS_PATH, signature="us")
   def ActionInvoked(self, id, action):
     logger.info(f"ActionInvoked with action {action} signalled for {id}.")
+    self.connection.emit_signal(
+      None,
+      OBJECT_PATH,
+      INTERFACE_NAME,
+      "ActionInvoked",
+      GLib.Variant("(us)", (id, action)),
+    )
 
-  @dbus.service.signal(DBUS_PATH, signature="uu")
   def NotificationClosed(self, id, reason):
     logger.info(f"NotificationClosed signalled for {id} due to {reason}.")
+    self.connection.emit_signal(
+      None,
+      OBJECT_PATH,
+      INTERFACE_NAME,
+      "NotificationClosed",
+      GLib.Variant("(uu)", (id, reason)),
+    )
 
-  @dbus.service.signal(DBUS_PATH, signature="uuus")
   def NotificationsUpdated(self, mode, num, urgency, single_line):
     logger.info("Notifications updated.")
+    self.connection.emit_signal(
+      None,
+      OBJECT_PATH,
+      INTERFACE_NAME,
+      "NotificationsUpdated",
+      GLib.Variant("(uuus)", (mode, num, urgency, single_line)),
+    )
 
   # Internal methods
 

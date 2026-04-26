@@ -1,4 +1,4 @@
-# i3 Notification Manager (Requires a recent version of rofi)
+# i3 Notification Manager (Requires rofi <= 1.6.1)
 
 This is a notification manager for i3 desktop environment inspired by 
 [Rofication](https://github.com/DaveDavenport/Rofication). Like 
@@ -30,6 +30,9 @@ Also see the companion py3status module
 ## Usage
 
 To install (also see the requirements.txt)
+
+> [!NOTE]
+> **System Dependency**: This project requires `PyGObject` (Gio) which depends on system libraries. Please install `python3-gi` (or equivalent for your distribution) via your system package manager before installing via pip.
 
     pip install i3-notifier
     
