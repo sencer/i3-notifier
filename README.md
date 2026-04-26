@@ -1,4 +1,4 @@
-# i3 Notification Manager (Requires rofi <= 1.6.1)
+# i3 Notification Manager (Requires rofi)
 
 This is a notification manager for i3 desktop environment inspired by 
 [Rofication](https://github.com/DaveDavenport/Rofication). Like 

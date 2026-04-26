@@ -1,6 +1,6 @@
 @import "common.rasi"
 
-#window {
+window {
     background-color: #252525;
     location: east;
     anchor:   east;

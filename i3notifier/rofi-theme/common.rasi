@@ -1,6 +1,5 @@
 configuration {
   columns: 1;
-  eh: 2;
   show-icons: true;
 
   kb-accept-alt: "";
@@ -36,51 +35,56 @@ configuration {
     bggroup: #4c4c6c;
 }
 
-#window {
+window {
     height:   100%;
     width: 20em;
     text-color: @lightwhite;
     children: [listview];
 }
 
-#listview {
+listview {
     padding: 10px;
     dynamic: false;
     lines: 0;
     spacing: 10px;
 }
 
-#element {
+element {
   padding: 10px;
   border-radius: 3px;
   background-color: @bg;
   text-color: @lightwhite;
 }
 
-#element.active {
+element active {
     background-color: @bggroup;
 }
 
-#element.urgent {
+element urgent {
     background-color: @lightred;
 }
 
-#element.selected {
+element selected {
     background-color: @blue;
     text-color: @dark;
 }
 
-#element.selected.active {
+element selected active {
     background-color: @lightblue;
     text-color: @dark;
 }
 
-#element.selected.urgent {
+element selected urgent {
     background-color: @red;
     text-color: @dark;
 }
 
-#element-icon {
+element-text, element-icon {
+    background-color: inherit;
+    text-color:       inherit;
+}
+
+element-icon {
   size: 2em;
   horizontal-align: 0.5;
   vertical-align: 0.5;
