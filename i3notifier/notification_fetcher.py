@@ -356,8 +356,8 @@ class NotificationFetcher:
     self._notifications_updated(NotificationUpdateMode.DELETED.value)
     return self._update_context()
 
-  def _show_notifications(self, row=0):
-    notifications = self.dm.get_context(self.context).notifications
+  def _show_notifications(self, row=0, auto_descend=True):
+    notifications = self.dm.get_context(self.context, auto_descend=auto_descend).notifications
 
     items = sorted(
       notifications.items(), key=lambda x: (-x[1].urgency, -x[1].best.created_at)
@@ -376,6 +376,14 @@ class NotificationFetcher:
       if self.context:
         self.context.pop()
         self._show_notifications()
+      else:
+        actual_root = self.dm.get_context([], auto_descend=False)
+        current_root = self.dm.get_context(self.context, auto_descend=auto_descend)
+        
+        if current_root is not actual_root and auto_descend:
+          self._show_notifications(auto_descend=False)
+        else:
+          return
       return
 
     if selected is None:

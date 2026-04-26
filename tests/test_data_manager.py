@@ -116,6 +116,18 @@ class TestDataManager(unittest.TestCase):
     self.assertEqual(len(self.dm.tree), 6)
     self.assertNotIn("A3", self.dm.tree.notifications)
 
+  def test_get_context_no_auto_descend(self):
+    self.assertIs(
+      self.dm.get_context(("A3",), auto_descend=False),
+      self.dm.tree.notifications["A3"],
+    )
+
+  def test_get_context_auto_descend_default(self):
+    self.assertIs(
+      self.dm.get_context(("A3",)),
+      self.dm.tree.notifications["A3"].notifications["1"],
+    )
+
 
 if __name__ == "__main__":
   unittest.main()

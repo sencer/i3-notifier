@@ -118,7 +118,7 @@ class DataManager:
   def get_context_by_id(self, id):
     return self.get_context(self.map[id])
 
-  def get_context(self, context=()):
+  def get_context(self, context=(), auto_descend=True):
     p = self.tree
 
     if context and context[0] not in p.notifications:
@@ -128,7 +128,7 @@ class DataManager:
     for key in context:
       p = p.notifications[key]
 
-    while len(p.notifications) == 1:
+    while auto_descend and len(p.notifications) == 1:
       child = next(iter(p.notifications.values()))
 
       if isinstance(child, Notification):
