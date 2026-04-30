@@ -7,7 +7,7 @@ import sys
 
 import daemon
 import daemon.pidfile
-from gi.repository import GLib, Gio
+from gi.repository import Gio, GLib
 
 from i3notifier.data_manager import DataManager
 from i3notifier.notification_fetcher import NotificationFetcher
@@ -160,7 +160,7 @@ def main():
       sys.exit(0)
     except GLib.Error as e:
       logger.info(f"D-Bus Quit failed: {e}. Falling back to SIGTERM.")
-      
+
       runtime_dir = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
       pid_file = os.path.join(runtime_dir, "i3-notifier.pid")
       if os.path.exists(pid_file):

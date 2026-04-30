@@ -20,8 +20,12 @@ class MLStripper(HTMLParser):
 
 
 def strip_tags(data):
+  if data is None:
+    return ""
+  if not isinstance(data, str):
+    data = str(data)
   s = MLStripper()
-  s.feed(html.escape(data))
+  s.feed(data)
   return s.get_data()
 
 

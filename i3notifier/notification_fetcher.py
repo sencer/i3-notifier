@@ -3,9 +3,10 @@ import logging
 import os.path
 import threading
 import time
+from functools import lru_cache
 
-from gi.repository import GLib, Gio
 import xdg.BaseDirectory
+from gi.repository import Gio, GLib
 from xdg.DesktopEntry import DesktopEntry
 
 from i3notifier.notification import Notification
@@ -18,6 +19,7 @@ INTERFACE_NAME = "org.freedesktop.Notifications"
 logger = logging.getLogger(__name__)
 
 
+@lru_cache(maxsize=128)
 def xdg_name_and_icon(app):
   entry = DesktopEntry()
   for directory in xdg.BaseDirectory.xdg_data_dirs:
@@ -357,7 +359,9 @@ class NotificationFetcher:
     return self._update_context()
 
   def _show_notifications(self, row=0, auto_descend=True):
-    notifications = self.dm.get_context(self.context, auto_descend=auto_descend).notifications
+    notifications = self.dm.get_context(
+      self.context, auto_descend=auto_descend
+    ).notifications
 
     items = sorted(
       notifications.items(), key=lambda x: (-x[1].urgency, -x[1].best.created_at)
@@ -379,7 +383,7 @@ class NotificationFetcher:
       else:
         actual_root = self.dm.get_context([], auto_descend=False)
         current_root = self.dm.get_context(self.context, auto_descend=auto_descend)
-        
+
         if current_root is not actual_root and auto_descend:
           self._show_notifications(auto_descend=False)
         else:

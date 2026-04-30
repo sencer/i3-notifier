@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "i3-notifier"
-version = "0.24"
+version = "0.25"
 description = "A notification daemon for i3"
 readme = "README.md"
 requires-python = ">=3.12"

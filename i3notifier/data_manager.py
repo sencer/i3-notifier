@@ -134,20 +134,26 @@ class DataManager:
       if isinstance(child, Notification):
         break
 
+      if len(child) > 1 and p is self.tree and not context:
+        break
+
       p = child
 
     return p
 
   def dump(self):
-    try:
-      with open(self.dump_path, "w") as f:
-        json.dump(
-          [notification.to_dict() for notification in self.tree.leafs()],
-          f,
-          indent=4,
-        )
-    except Exception as e:
-      logger.error(f"Failed to dump notifications: {e}")
+    def _dump():
+      try:
+        with open(self.dump_path, "w") as f:
+          json.dump(
+            [notification.to_dict() for notification in self.tree.leafs()],
+            f,
+            indent=4,
+          )
+      except Exception as e:
+        logger.error(f"Failed to dump notifications: {e}")
+
+    threading.Thread(target=_dump, daemon=True).start()
 
   def cancel_timers(self):
     for notification in self.tree.leafs():
