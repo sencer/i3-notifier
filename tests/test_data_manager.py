@@ -253,7 +253,7 @@ class TestNotificationFetcher(unittest.TestCase):
     dm.add_notification(n1)
     dm.add_notification(n2)
 
-    fetcher = NotificationFetcher(dm, MagicMock())
+    fetcher = NotificationFetcher(dm, MagicMock(), start_ipc=False)
     self.assertEqual(fetcher._id, 11)
     self.assertIsNotNone(n1.timer)
     dm.cancel_timers()
@@ -264,7 +264,7 @@ class TestNotificationFetcher(unittest.TestCase):
     from i3notifier.notification_fetcher import NotificationFetcher
 
     dm = DataManager([DummyConfig], "/dev/null")
-    fetcher = NotificationFetcher(dm, MagicMock())
+    fetcher = NotificationFetcher(dm, MagicMock(), start_ipc=False)
     self.assertEqual(fetcher._id, 1)
 
     # Simulate an app inserting an ID ahead of sequence (replaces_id)
@@ -293,7 +293,7 @@ class TestNotificationFetcher(unittest.TestCase):
     dm.map[5] = ("A", "b")
     DataManager._recursive_add_notification(dm.tree, n, ["A", "b", 5])
 
-    fetcher = NotificationFetcher(dm, MagicMock())
+    fetcher = NotificationFetcher(dm, MagicMock(), start_ipc=False)
     # Should not crash with AttributeError and should remove expired notification
     self.assertNotIn(5, dm.map)
     self.assertEqual(len(dm.tree), 0)
@@ -304,7 +304,7 @@ class TestNotificationFetcher(unittest.TestCase):
     from i3notifier.notification_fetcher import NotificationFetcher
 
     dm = DataManager([DummyConfig], "/dev/null")
-    fetcher = NotificationFetcher(dm, MagicMock())
+    fetcher = NotificationFetcher(dm, MagicMock(), start_ipc=False)
     # Nonexistent ID
     fetcher.CloseNotification(9999)
 
@@ -318,7 +318,7 @@ class TestNotificationFetcher(unittest.TestCase):
     from i3notifier.notification_fetcher import NotificationFetcher
 
     dm = DataManager([DummyConfig], "/dev/null")
-    fetcher = NotificationFetcher(dm, MagicMock())
+    fetcher = NotificationFetcher(dm, MagicMock(), start_ipc=False)
     fetcher.connection = MagicMock()
     fetcher.Notify("A", 0, "file:///usr/share/icons/test.png", "s", "b", [], {}, -1)
     self.assertEqual(dm.tree.best.app_icon, "/usr/share/icons/test.png")
@@ -349,7 +349,7 @@ class TestNotificationFetcher(unittest.TestCase):
       (None, Operation.EXIT_COMPLETELY),
     ]
 
-    fetcher = NotificationFetcher(dm, gui)
+    fetcher = NotificationFetcher(dm, gui, start_ipc=False)
     fetcher.ActionInvoked = MagicMock()
     fetcher.NotificationClosed = MagicMock()
 

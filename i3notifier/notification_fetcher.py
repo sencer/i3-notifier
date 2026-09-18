@@ -9,8 +9,9 @@ import xdg.BaseDirectory
 from gi.repository import Gio, GLib
 from xdg.DesktopEntry import DesktopEntry
 
-from i3notifier.notification import Notification
+from i3notifier.notification import Notification, NotificationCluster
 from i3notifier.rofi_gui import Operation
+from i3notifier.rofi_ipc import RofiIPCServer
 
 BUS_NAME = "org.freedesktop.Notifications"
 OBJECT_PATH = "/org/freedesktop/Notifications"
@@ -108,12 +109,17 @@ INTROSPECTION_XML = """
 
 
 class NotificationFetcher:
-  def __init__(self, dm, gui, loop=None):
+  def __init__(self, dm, gui, loop=None, start_ipc=True):
     self.dm = dm
     self.gui = gui
     self.loop = loop
     self.context = []
+    self.rofi_context = []
+    self.rofi_auto_descend = True
     self._id = max(self.dm.map.keys(), default=0) + 1
+    self.ipc_server = (
+      RofiIPCServer(self.handle_rofi_request) if start_ipc else None
+    )
 
     self.node_info = Gio.DBusNodeInfo.new_for_xml(INTROSPECTION_XML)
     self.connection = Gio.bus_get_sync(Gio.BusType.SESSION, None)
@@ -318,9 +324,35 @@ class NotificationFetcher:
     return len(self.dm.tree), self.dm.tree.urgency or 0
 
   def ShowNotifications(self):
-    self.context = []
-    if len(self.dm.tree) > 0:
+    if hasattr(self.gui, "is_running") and self.gui.is_running() is True:
+      logger.info("Toggling Rofi off (already running).")
+      self.gui.close()
+      self._on_rofi_exit()
+      return
+
+    if len(self.dm.tree) == 0:
+      logger.info("No notifications to show.")
+      return
+
+    self.rofi_context = []
+    self.rofi_auto_descend = True
+    if getattr(self.gui, "use_script_mode", False) is True:
+      self.gui.launch_script_mode(exit_callback=self._on_rofi_exit)
+    else:
+      self.context = []
       self._show_notifications()
+
+  def _on_rofi_exit(self, pid=None, condition=None):
+    logger.info("Rofi process exited.")
+    self.rofi_context = []
+    self.rofi_auto_descend = True
+
+  def close(self):
+    if hasattr(self, "ipc_server") and self.ipc_server:
+      self.ipc_server.close()
+      self.ipc_server = None
+    if hasattr(self, "gui") and hasattr(self.gui, "close"):
+      self.gui.close()
 
   def SignalNotificationCount(self):
     self._notifications_updated(NotificationUpdateMode.MANUAL.value)
@@ -329,6 +361,7 @@ class NotificationFetcher:
     logger.info("Quit requested via DBus.")
     self.dm.dump(force_sync=True, fsync=True)
     self.dm.cancel_timers()
+    self.close()
     if self.loop is not None and self.loop.is_running():
       self.loop.quit()
     else:
@@ -392,7 +425,12 @@ class NotificationFetcher:
 
   def _remove_notification(self, key, reason):
     logger.info(f"Attempting to remove notification {key} since {reason}")
-    self.dm.remove_notification(key, self.context)
+    context = (
+      self.rofi_context
+      if hasattr(self, "rofi_context") and self.rofi_context
+      else self.context
+    )
+    self.dm.remove_notification(key, context)
     self._notifications_updated(NotificationUpdateMode.DELETED.value)
     return self._update_context()
 
@@ -481,3 +519,195 @@ class NotificationFetcher:
     logger.info("Context updated.")
     self.context = new_context
     return True
+
+  def _render_rofi_context(self, keep_selection=False):
+    if len(self.dm.tree) == 0:
+      return {"action": "close"}
+
+    ctx = self.dm.get_context(
+      self.rofi_context, auto_descend=self.rofi_auto_descend
+    )
+    notifications = ctx.notifications
+    if len(notifications) == 0:
+      if self.rofi_context:
+        self.rofi_context.pop()
+        return self._render_rofi_context(keep_selection=keep_selection)
+      return {"action": "close"}
+
+    items = sorted(
+      notifications.items(), key=lambda x: (-x[1].urgency, -x[1].best.created_at)
+    )
+
+    urgent = []
+    active = []
+    entries = []
+    for i, (key, notif) in enumerate(items):
+      if notif.urgency == 2:
+        urgent.append(i)
+      if len(notif) > 1:
+        active.append(i)
+
+      info_val = (
+        f"cluster:{key}"
+        if isinstance(notif, NotificationCluster)
+        else f"leaf:{notif.id}"
+      )
+      formatted_str = notif.formatted().decode("utf-8")
+      if "\x00" in formatted_str:
+        entry_str = f"{formatted_str}\x1finfo\x1f{info_val}"
+      else:
+        entry_str = f"{formatted_str}\x00info\x1f{info_val}"
+      entries.append(entry_str)
+
+    if self.rofi_context:
+      prompt = f"({len(ctx)}) {self.rofi_context[-1]}"
+    else:
+      prompt = "Notifications"
+
+    return {
+      "action": "render",
+      "prompt": prompt,
+      "keep_selection": keep_selection,
+      "urgent": urgent,
+      "active": active,
+      "entries": entries,
+    }
+
+  def handle_rofi_request(self, req):
+    retv = req.get("retv", 0)
+    info = req.get("info", "")
+
+    if retv == 0:
+      return self._render_rofi_context()
+
+    elif retv == 1:
+      if info.startswith("leaf:"):
+        notif_id = int(info[len("leaf:") :])
+        if notif_id in self.dm.map:
+          ctx = self.dm.get_context_by_id(notif_id)
+          if notif_id in ctx.notifications:
+            n = ctx.notifications[notif_id]
+            if self._process_hooks(n, "pre_action_hooks"):
+              self.ActionInvoked(notif_id, "default")
+            else:
+              logger.info(f"Skipping action for {notif_id}.")
+
+            if self._process_hooks(n, "post_action_hooks"):
+              self._remove_notification(notif_id, RemoveReason.ACTION_INVOKED)
+              self.NotificationClosed(notif_id, 2)
+            else:
+              logger.info(
+                f"Skipping CloseNotification (after action) for {notif_id}."
+              )
+        return {"action": "close"}
+      elif info.startswith("cluster:"):
+        cluster_key = info[len("cluster:") :]
+        self.rofi_context.append(cluster_key)
+        return self._render_rofi_context()
+      else:
+        return {"action": "close"}
+
+    elif retv == 10:
+      if info.startswith("leaf:"):
+        notif_id = int(info[len("leaf:") :])
+        self._remove_notification(notif_id, RemoveReason.USER_DELETED)
+        self.NotificationClosed(notif_id, 2)
+      elif info.startswith("cluster:"):
+        cluster_key = info[len("cluster:") :]
+        self._remove_notification(cluster_key, RemoveReason.USER_DELETED)
+
+      if len(self.dm.tree) == 0:
+        return {"action": "close"}
+
+      ctx = self.dm.get_context(
+        self.rofi_context, auto_descend=self.rofi_auto_descend
+      )
+      if len(ctx.notifications) == 0 and self.rofi_context:
+        self.rofi_context.pop()
+
+      return self._render_rofi_context(keep_selection=True)
+
+    elif retv == 11:
+      if self.rofi_context:
+        self.rofi_context.pop()
+        return self._render_rofi_context()
+      else:
+        actual_root = self.dm.get_context([], auto_descend=False)
+        current_root = self.dm.get_context(
+          self.rofi_context, auto_descend=self.rofi_auto_descend
+        )
+        if current_root is not actual_root and self.rofi_auto_descend:
+          self.rofi_auto_descend = False
+          return self._render_rofi_context()
+        else:
+          return {"action": "close"}
+
+    elif retv == 12:
+      if info.startswith("cluster:"):
+        cluster_key = info[len("cluster:") :]
+        ctx = self.dm.get_context(
+          self.rofi_context, auto_descend=self.rofi_auto_descend
+        )
+        if cluster_key in ctx.notifications:
+          cluster = ctx.notifications[cluster_key]
+          best = cluster.best
+          best_id = best.id
+          if self._process_hooks(best, "pre_action_hooks"):
+            self.ActionInvoked(best_id, "default")
+          else:
+            logger.info(f"Skipping action for {best_id}.")
+
+          if self._process_hooks(best, "post_action_hooks"):
+            self._remove_notification(best_id, RemoveReason.ACTION_INVOKED)
+            self.NotificationClosed(best_id, 2)
+          else:
+            logger.info(
+              f"Skipping CloseNotification (after action) for {best_id}."
+            )
+        return {"action": "close"}
+      elif info.startswith("leaf:"):
+        notif_id = int(info[len("leaf:") :])
+        if notif_id in self.dm.map:
+          ctx = self.dm.get_context_by_id(notif_id)
+          if notif_id in ctx.notifications:
+            n = ctx.notifications[notif_id]
+            if self._process_hooks(n, "pre_action_hooks"):
+              self.ActionInvoked(notif_id, "default")
+            if self._process_hooks(n, "post_action_hooks"):
+              self._remove_notification(notif_id, RemoveReason.ACTION_INVOKED)
+              self.NotificationClosed(notif_id, 2)
+        return {"action": "close"}
+      else:
+        return {"action": "close"}
+
+    elif retv == 13:
+      if info.startswith("cluster:"):
+        cluster_key = info[len("cluster:") :]
+        ctx = self.dm.get_context(
+          self.rofi_context, auto_descend=self.rofi_auto_descend
+        )
+        if cluster_key in ctx.notifications:
+          cluster = ctx.notifications[cluster_key]
+          best = cluster.best
+          best_id = best.id
+          self._remove_notification(best_id, RemoveReason.USER_DELETED)
+          self.NotificationClosed(best_id, 2)
+      elif info.startswith("leaf:"):
+        notif_id = int(info[len("leaf:") :])
+        self._remove_notification(notif_id, RemoveReason.USER_DELETED)
+        self.NotificationClosed(notif_id, 2)
+
+      if len(self.dm.tree) == 0:
+        return {"action": "close"}
+
+      ctx = self.dm.get_context(
+        self.rofi_context, auto_descend=self.rofi_auto_descend
+      )
+      if len(ctx.notifications) == 0 and self.rofi_context:
+        self.rofi_context.pop()
+
+      return self._render_rofi_context(keep_selection=True)
+
+    else:
+      return {"action": "close"}
+

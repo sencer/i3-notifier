@@ -20,6 +20,7 @@ dependencies = [
 [project.scripts]
 i3-notifier = "i3notifier.main:main"
 switch-to-urgent = "i3notifier.switch_to_urgent:main"
+i3-notifier-rofi-agent = "i3notifier.rofi_agent:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["i3notifier"]
