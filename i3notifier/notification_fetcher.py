@@ -21,12 +21,18 @@ logger = logging.getLogger(__name__)
 
 @lru_cache(maxsize=128)
 def xdg_name_and_icon(app):
+  if not app:
+    return None, None
+  desktop_file = app if app.endswith(".desktop") else f"{app}.desktop"
   entry = DesktopEntry()
   for directory in xdg.BaseDirectory.xdg_data_dirs:
-    path = os.path.join(directory, "applications", f"{app}.desktop")
+    path = os.path.join(directory, "applications", desktop_file)
     if os.path.exists(path):
-      entry.parse(path)
-      return entry.getName(), entry.getIcon()
+      try:
+        entry.parse(path)
+        return entry.getName(), entry.getIcon()
+      except Exception:
+        pass
   return None, None
 
 
@@ -181,7 +187,7 @@ class NotificationFetcher:
     elif method_name == "GetServerInformation":
       invocation.return_value(
         GLib.Variant(
-          "(ssss)", ("i3notifier", "github.com/sencer/i3-notifier", "0.26", "1.2")
+          "(ssss)", ("i3notifier", "github.com/sencer/i3-notifier", "0.27", "1.2")
         )
       )
     elif method_name == "DumpNotifications":
@@ -242,6 +248,9 @@ class NotificationFetcher:
       elif "image-path" in hints:
         app_icon = hints["image-path"]
 
+    if app_icon and app_icon.startswith("file://"):
+      app_icon = app_icon.removeprefix("file://")
+
     notification = Notification(
       id=id,
       app_name=app_name,
@@ -279,7 +288,16 @@ class NotificationFetcher:
     return id
 
   def CloseNotification(self, id):
-    notification = self.dm.get_context_by_id(id).notifications[id]
+    if id not in self.dm.map:
+      logger.info(f"CloseNotification: notification {id} not found.")
+      return
+
+    ctx = self.dm.get_context_by_id(id)
+    if id not in ctx.notifications:
+      logger.info(f"CloseNotification: notification {id} not found in context.")
+      return
+
+    notification = ctx.notifications[id]
     logger.info(f"Received CloseNotification request for {notification}")
 
     if self._process_hooks(notification, "pre_close_hooks"):
@@ -419,19 +437,21 @@ class NotificationFetcher:
     if op == Operation.SELECT or op == Operation.SELECT_ALT:
       if len(notification) == 1 or op == Operation.SELECT_ALT:
         logger.info("Selection is a singleton. Invoking default action.")
-        self.context = self.dm.map[notification.best.id]
+        best_notification = notification.best
+        best_id = best_notification.id
+        self.context = self.dm.map[best_id]
 
-        if self._process_hooks(notification.best, "pre_action_hooks"):
-          self.ActionInvoked(notification.best.id, "default")
+        if self._process_hooks(best_notification, "pre_action_hooks"):
+          self.ActionInvoked(best_id, "default")
         else:
-          logger.info(f"Skipping action for {notification.id}.")
+          logger.info(f"Skipping action for {best_id}.")
 
-        if self._process_hooks(notification.best, "post_action_hooks"):
-          self._remove_notification(notification.best.id, RemoveReason.ACTION_INVOKED)
-          self.NotificationClosed(notification.best.id, 2)
+        if self._process_hooks(best_notification, "post_action_hooks"):
+          self._remove_notification(best_id, RemoveReason.ACTION_INVOKED)
+          self.NotificationClosed(best_id, 2)
         else:
           logger.info(
-            f"Skipping CloseNotification (after action) for {notification.id}."
+            f"Skipping CloseNotification (after action) for {best_id}."
           )
       else:
         logger.info("Selection is a cluster. Expanding.")

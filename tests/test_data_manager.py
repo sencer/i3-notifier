@@ -133,6 +133,34 @@ class TestDataManager(unittest.TestCase):
       self.dm.tree.notifications["A3"].notifications["1"],
     )
 
+  def test_remove_last_falls_back_to_tree_best(self):
+    self.assertEqual(self.dm.last.id, 7)
+    self.dm.remove_notification(7)
+    self.assertIsNotNone(self.dm.last)
+    self.assertEqual(self.dm.last.id, 6)
+
+  def test_remove_cluster_containing_last_falls_back(self):
+    self.assertEqual(self.dm.last.id, 7)
+    self.dm.remove_notification("1", ("A1",))
+    self.assertIsNotNone(self.dm.last)
+    self.assertEqual(self.dm.last.id, 6)
+
+  def test_remove_all_clears_last(self):
+    dm = DataManager([DummyConfig], "/dev/null")
+    n = Notification(1, "A", "icon", "1", "b", ["dflt"], 100, 1)
+    dm.add_notification(n)
+    self.assertEqual(dm.last.id, 1)
+    dm.remove_notification(1)
+    self.assertIsNone(dm.last)
+
+  def test_get_context_invalid_path(self):
+    ctx = self.dm.get_context(("NonExistent", "Path"))
+    self.assertIsNotNone(ctx)
+
+  def test_get_context_leaf_path_no_crash(self):
+    ctx = self.dm.get_context(("A1", "1", 7))
+    self.assertIsNotNone(ctx)
+
 
 class TestPersistence(unittest.TestCase):
   def setUp(self):
@@ -269,6 +297,65 @@ class TestNotificationFetcher(unittest.TestCase):
     # Should not crash with AttributeError and should remove expired notification
     self.assertNotIn(5, dm.map)
     self.assertEqual(len(dm.tree), 0)
+
+  @patch("i3notifier.notification_fetcher.Gio")
+  def test_close_notification_nonexistent_and_stale(self, mock_gio):
+    from unittest.mock import MagicMock
+    from i3notifier.notification_fetcher import NotificationFetcher
+
+    dm = DataManager([DummyConfig], "/dev/null")
+    fetcher = NotificationFetcher(dm, MagicMock())
+    # Nonexistent ID
+    fetcher.CloseNotification(9999)
+
+    # Stale context: ID in dm.map but not in dm.tree
+    dm.map[8888] = ("A",)
+    fetcher.CloseNotification(8888)
+
+  @patch("i3notifier.notification_fetcher.Gio")
+  def test_notify_strips_file_uri_prefix(self, mock_gio):
+    from unittest.mock import MagicMock
+    from i3notifier.notification_fetcher import NotificationFetcher
+
+    dm = DataManager([DummyConfig], "/dev/null")
+    fetcher = NotificationFetcher(dm, MagicMock())
+    fetcher.connection = MagicMock()
+    fetcher.Notify("A", 0, "file:///usr/share/icons/test.png", "s", "b", [], {}, -1)
+    self.assertEqual(dm.tree.best.app_icon, "/usr/share/icons/test.png")
+
+  def test_xdg_name_and_icon(self):
+    from i3notifier.notification_fetcher import xdg_name_and_icon
+    self.assertEqual(xdg_name_and_icon(""), (None, None))
+    self.assertEqual(xdg_name_and_icon(None), (None, None))
+    self.assertEqual(xdg_name_and_icon("nonexistent_app_12345.desktop"), (None, None))
+
+  @patch("i3notifier.notification_fetcher.Gio")
+  def test_show_notifications_cluster_select_alt(self, mock_gio):
+    from unittest.mock import MagicMock
+    from i3notifier.notification_fetcher import NotificationFetcher
+    from i3notifier.rofi_gui import Operation
+
+    dm = DataManager([DummyConfig], "/dev/null")
+    now = time.time_ns()
+    n1 = Notification(1, "A1", "icon", "1", "b1", ["dflt"], now, 1)
+    n2 = Notification(2, "A1", "icon", "1", "b2", ["dflt"], now + 1, 1)
+    dm.add_notification(n1)
+    dm.add_notification(n2)
+
+    gui = MagicMock()
+    # Return index 0 with SELECT_ALT, then EXIT_COMPLETELY
+    gui.show_notifications.side_effect = [
+      (0, Operation.SELECT_ALT),
+      (None, Operation.EXIT_COMPLETELY),
+    ]
+
+    fetcher = NotificationFetcher(dm, gui)
+    fetcher.ActionInvoked = MagicMock()
+    fetcher.NotificationClosed = MagicMock()
+
+    fetcher.ShowNotifications()
+    fetcher.ActionInvoked.assert_called_once_with(2, "default")
+    fetcher.NotificationClosed.assert_called_once_with(2, 2)
 
 
 if __name__ == "__main__":

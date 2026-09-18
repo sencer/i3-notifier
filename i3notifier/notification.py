@@ -157,6 +157,9 @@ class NotificationCluster:
     return self._urgency or 0
 
   def formatted(self):
+    if len(self) == 0:
+      return b""
+
     if len(self) == 1:
       return self.best.formatted()
 

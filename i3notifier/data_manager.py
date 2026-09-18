@@ -130,8 +130,7 @@ class DataManager:
     removed = False
     with self.lock:
       if isinstance(id, int):
-        if self.last and id == self.last.id:
-          self.last = None
+        last_removed = self.last and id == self.last.id
 
         context = self.map.pop(id, None)
         if context is not None:
@@ -142,18 +141,24 @@ class DataManager:
             if notification.timer is not None:
               notification.timer.cancel()
           DataManager._recursive_remove_notification(self.tree, [*context, id], i=0)
+
+        if last_removed:
+          self.last = self.tree.best if len(self.tree) > 0 else None
       else:
         ctx = self.get_context(context)
         if id in ctx.notifications:
           removed = True
+          last_removed = False
           for leaf in ctx.notifications[id].leafs():
             if self.last and leaf.id == self.last.id:
-              self.last = None
+              last_removed = True
             if leaf.timer is not None:
               leaf.timer.cancel()
             self.map.pop(leaf.id, None)
 
           DataManager._recursive_remove_notification(self.tree, [*context, id], i=0)
+          if last_removed:
+            self.last = self.tree.best if len(self.tree) > 0 else None
 
     if removed and dump and not self._loading:
       self.dump(force_sync=False)
@@ -167,13 +172,18 @@ class DataManager:
     p = self.tree
 
     if context and context[0] not in p.notifications:
-      while len(p.notifications) == 1:
-        p = next(iter(p.notifications.values()))
+      while isinstance(p, NotificationCluster) and len(p.notifications) == 1:
+        child = next(iter(p.notifications.values()))
+        if isinstance(child, Notification):
+          break
+        p = child
 
     for key in context:
+      if not isinstance(p, NotificationCluster) or key not in p.notifications:
+        break
       p = p.notifications[key]
 
-    while auto_descend and len(p.notifications) == 1:
+    while auto_descend and isinstance(p, NotificationCluster) and len(p.notifications) == 1:
       child = next(iter(p.notifications.values()))
 
       if isinstance(child, Notification):

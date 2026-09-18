@@ -31,7 +31,14 @@ class RofiGUI:
       r"\x01",
     ] + list(args)
     if theme is not None:
-      self._args.extend(["-theme", f"{os.path.dirname(__file__)}/rofi-theme/{theme}"])
+      theme_file = theme if theme.endswith(".rasi") else f"{theme}.rasi"
+      built_in_theme = os.path.join(os.path.dirname(__file__), "rofi-theme", theme_file)
+      if os.path.exists(built_in_theme):
+        self._args.extend(["-theme", built_in_theme])
+      elif os.path.exists(theme):
+        self._args.extend(["-theme", theme])
+      else:
+        self._args.extend(["-theme", built_in_theme])
 
   def show_notifications(self, notifications, row=0):
 
@@ -57,12 +64,18 @@ class RofiGUI:
       stdout=subprocess.PIPE,
     )
 
-    proc.stdin.write(self._separator.join(formatted_notifications))
-    proc.stdin.close()
+    stdout_data, _ = proc.communicate(input=self._separator.join(formatted_notifications))
+    raw_selection = stdout_data.decode("utf-8").strip() if stdout_data else ""
+    try:
+      maybe_selection = int(raw_selection) if raw_selection else None
+    except ValueError:
+      maybe_selection = None
 
-    maybe_selection = (lambda x: int(x) if x else None)(
-      proc.stdout.read().decode("utf-8")
-    )
-    operation = proc.wait()
+    operation = proc.returncode
     logger.info(f"Operation {operation}")
-    return maybe_selection, Operation(operation)
+    try:
+      op = Operation(operation)
+    except ValueError:
+      op = Operation.EXIT_COMPLETELY
+
+    return maybe_selection, op
