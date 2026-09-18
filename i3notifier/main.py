@@ -60,14 +60,49 @@ def run_daemon(config_path=None, nodaemon=False):
     else:
       sys.exit(0)
 
+  # Check if another instance is already running via D-Bus
+  try:
+    bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+    res = bus.call_sync(
+      "org.freedesktop.DBus",
+      "/org/freedesktop/DBus",
+      "org.freedesktop.DBus",
+      "GetNameOwner",
+      GLib.Variant("(s)", ["org.freedesktop.Notifications"]),
+      None,
+      Gio.DBusCallFlags.NO_AUTO_START,
+      500,
+      None,
+    )
+    owner = res.unpack()[0]
+    pid_res = bus.call_sync(
+      "org.freedesktop.DBus",
+      "/org/freedesktop/DBus",
+      "org.freedesktop.DBus",
+      "GetConnectionUnixProcessID",
+      GLib.Variant("(s)", [owner]),
+      None,
+      Gio.DBusCallFlags.NO_AUTO_START,
+      500,
+      None,
+    )
+    existing_pid = pid_res.unpack()[0]
+    if existing_pid != os.getpid():
+      print(f"i3-notifier is already running with pid {existing_pid}.", file=sys.stderr)
+      sys.exit(1)
+  except Exception:
+    pass
+
   runtime_dir = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
   pid_file = os.path.join(runtime_dir, "i3-notifier.pid")
 
   if os.path.exists(pid_file):
     try:
       pid = int(open(pid_file).read().strip())
-      os.kill(pid, 0)
-      logger.info(f"i3-notifier is already running with pid {pid}.")
+      if pid != os.getpid():
+        os.kill(pid, 0)
+        print(f"i3-notifier is already running with pid {pid}.", file=sys.stderr)
+        sys.exit(1)
     except (ProcessLookupError, ValueError):
       os.remove(pid_file)
       logger.info("i3-notifier is not running, but a lock file exists. Cleaning up.")
@@ -84,7 +119,12 @@ def run_daemon(config_path=None, nodaemon=False):
       data_manager.cancel_timers()
     finally:
       if os.path.exists(pid_file):
-        os.remove(pid_file)
+        try:
+          with open(pid_file) as f:
+            if int(f.read().strip()) == os.getpid():
+              os.remove(pid_file)
+        except Exception:
+          pass
 
   if nodaemon:
     signal.signal(signal.SIGTERM, dump_and_exit)

@@ -127,7 +127,11 @@ class NotificationFetcher:
     )
 
     Gio.bus_own_name_on_connection(
-      self.connection, BUS_NAME, Gio.BusNameOwnerFlags.NONE, None, None
+      self.connection,
+      BUS_NAME,
+      Gio.BusNameOwnerFlags.DO_NOT_QUEUE,
+      None,
+      self._on_name_lost,
     )
 
     # Schedule expiration timers for restored notifications
@@ -324,6 +328,11 @@ class NotificationFetcher:
 
   def SignalNotificationCount(self):
     self._notifications_updated(NotificationUpdateMode.MANUAL.value)
+
+  def _on_name_lost(self, connection, name):
+    logger.error(f"Could not acquire or lost D-Bus name '{name}'.")
+    if self.loop is not None and self.loop.is_running():
+      self.loop.quit()
 
   def Quit(self):
     logger.info("Quit requested via DBus.")
