@@ -181,7 +181,7 @@ class NotificationFetcher:
     elif method_name == "GetServerInformation":
       invocation.return_value(
         GLib.Variant(
-          "(ssss)", ("i3notifier", "github.com/sencer/i3-notifier", "0.23", "1.2")
+          "(ssss)", ("i3notifier", "github.com/sencer/i3-notifier", "0.26", "1.2")
         )
       )
     elif method_name == "DumpNotifications":
