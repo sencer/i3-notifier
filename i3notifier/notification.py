@@ -23,6 +23,7 @@ class Notification:
     "urgency",
     "config",
     "timer",
+    "_expires",
   )
 
   def __init__(
@@ -36,6 +37,7 @@ class Notification:
     created_at,
     expires_at=None,
     urgency=0,
+    expires=None,
   ):
     self.id = id
     self.app_name = app_name
@@ -48,6 +50,7 @@ class Notification:
     self.urgency = urgency
     self.config = Config
     self.timer = None
+    self._expires = expires
 
   @property
   def pre_action_hooks(self):
@@ -67,6 +70,8 @@ class Notification:
 
   @property
   def expires(self):
+    if self._expires is not None:
+      return self._expires
     return self.config.expires
 
   def formatted(self):
@@ -89,6 +94,7 @@ class Notification:
       self.created_at,
       self.expires_at,
       self.urgency,
+      expires=self.expires,
     )
 
   def to_dict(self):
@@ -102,6 +108,7 @@ class Notification:
       "created_at": self.created_at,
       "expires_at": self.expires_at,
       "urgency": self.urgency,
+      "expires": self.expires,
     }
 
   def __len__(self):

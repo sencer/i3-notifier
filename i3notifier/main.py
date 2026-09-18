@@ -31,24 +31,34 @@ def run_daemon(config_path=None, nodaemon=False):
   dump_path = os.path.join(state_home, "i3-notifier", "dump")
   os.makedirs(os.path.dirname(dump_path), exist_ok=True)
 
-  logger.info(
-    f"Notifications will be dumped to {dump_path} on graceful exit or when asked."
-  )
+  logger.info(f"Notifications will be persisted to {dump_path}.")
   data_manager = DataManager(userconfig.config_list, dump_path)
 
   def excepthook(type, value, traceback):
     logger.error("Unhandled exception:", exc_info=(type, value, traceback))
-    data_manager.dump()
+    data_manager.dump(force_sync=True, fsync=True)
     sys.__excepthook__(type, value, traceback)
 
   sys.excepthook = excepthook
 
   gui = RofiGUI(theme=userconfig.theme)
+  loop = GLib.MainLoop()
+  _exiting = False
 
-  def dump_and_exit(n, f):
-    data_manager.dump()
+  def dump_and_exit(signum=None, frame=None):
+    nonlocal _exiting
+    if _exiting:
+      return
+    _exiting = True
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    logger.info("Shutdown signal received, dumping notifications...")
+    data_manager.dump(force_sync=True, fsync=True)
     data_manager.cancel_timers()
-    sys.exit(0)
+    if loop.is_running():
+      loop.quit()
+    else:
+      sys.exit(0)
 
   runtime_dir = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
   pid_file = os.path.join(runtime_dir, "i3-notifier.pid")
@@ -63,19 +73,22 @@ def run_daemon(config_path=None, nodaemon=False):
       logger.info("i3-notifier is not running, but a lock file exists. Cleaning up.")
 
   def run():
-    NotificationFetcher(data_manager, gui)
+    NotificationFetcher(data_manager, gui, loop=loop)
 
     logger.info("Starting i3-notifier.")
     try:
-      GLib.MainLoop().run()
+      loop.run()
     except (Exception, KeyboardInterrupt) as e:
-      logger.info(f"Exiting Glib.MainLoop: {e}")
-      data_manager.dump()
+      logger.info(f"Exiting GLib.MainLoop: {e}")
+      data_manager.dump(force_sync=True, fsync=True)
+      data_manager.cancel_timers()
     finally:
       if os.path.exists(pid_file):
         os.remove(pid_file)
 
   if nodaemon:
+    signal.signal(signal.SIGTERM, dump_and_exit)
+    signal.signal(signal.SIGINT, dump_and_exit)
     logger.info(f"Creating lock file {pid_file}")
     with open(pid_file, "w") as f:
       f.write(str(os.getpid()))
@@ -83,7 +96,10 @@ def run_daemon(config_path=None, nodaemon=False):
   else:
     with daemon.DaemonContext(
       pidfile=daemon.pidfile.PIDLockFile(pid_file),
-      signal_map={signal.SIGTERM: dump_and_exit},
+      signal_map={
+        signal.SIGTERM: dump_and_exit,
+        signal.SIGINT: dump_and_exit,
+      },
       files_preserve=files_preserve,
     ):
       run()

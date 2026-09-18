@@ -1,6 +1,9 @@
 import json
 import logging
+import os
+import tempfile
 import threading
+import time
 
 from .notification import Notification, NotificationCluster
 
@@ -8,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class DataManager:
-  __slots__ = "tree", "map", "lock", "configs", "dump_path", "last"
+  __slots__ = "tree", "map", "lock", "configs", "dump_path", "last", "_loading"
 
   def __init__(self, configs, dump_path):
 
@@ -16,20 +19,41 @@ class DataManager:
     self.map = dict()
     self.last = None
 
-    self.lock = threading.Lock()
+    self.lock = threading.RLock()
     self.configs = configs
     self.dump_path = dump_path
+    self._loading = True
 
     try:
-      with open(dump_path, "r") as f:
-        for d in json.load(f):
-          self.add_notification(Notification(**d))
+      if dump_path and dump_path not in ("/dev/null", os.devnull) and os.path.exists(dump_path):
+        with open(dump_path, "r") as f:
+          now = time.time_ns()
+          for d in json.load(f):
+            notification = Notification(**d)
+            for config in self.configs:
+              if config.should_apply(notification):
+                config.update_notification(notification)
+                notification.config = config
+                break
+
+            if notification.expires and notification.expires_at is not None:
+              if notification.expires_at <= now:
+                continue
+
+            keys = notification.keys()
+            self.map[notification.id] = keys
+            DataManager._recursive_add_notification(
+              self.tree, notification, [*keys, notification.id]
+            )
+            self.last = notification
     except FileNotFoundError:
       logger.info("No dump file found, starting fresh.")
     except json.JSONDecodeError:
       logger.info("Dump file was empty or invalid, starting fresh.")
     except Exception as e:
       logger.error(f"Failed to load dump file: {e}")
+    finally:
+      self._loading = False
 
   def _recursive_add_notification(cluster, notification, keys, i=0):
     if i == len(keys):
@@ -43,17 +67,21 @@ class DataManager:
     )
     cluster.add(keys[i], notification)
 
-  def add_notification(self, notification):
+  def add_notification(self, notification, dump=True):
     for config in self.configs:
       if config.should_apply(notification):
         config.update_notification(notification)
         notification.config = config
         break
 
+    if notification.expires and notification.expires_at is not None:
+      if notification.expires_at <= time.time_ns():
+        return
+
     keys = notification.keys()
 
     if notification.id in self.map:
-      self.remove_notification(notification.id)
+      self.remove_notification(notification.id, dump=False)
 
     with self.lock:
       self.last = notification
@@ -61,6 +89,9 @@ class DataManager:
       DataManager._recursive_add_notification(
         self.tree, notification, [*keys, notification.id]
       )
+
+    if dump and not self._loading:
+      self.dump(force_sync=False)
 
   def _recursive_remove_notification(cluster, keys, i=0):
     key = keys[i]
@@ -95,25 +126,39 @@ class DataManager:
 
     return nremoved, best, urgency
 
-  def remove_notification(self, id, context=()):
+  def remove_notification(self, id, context=(), dump=True):
+    removed = False
     with self.lock:
       if isinstance(id, int):
         if self.last and id == self.last.id:
           self.last = None
 
-        context = self.map.pop(id)
-        notification = self.get_context(context).notifications[id]
-        if notification.timer is not None:
-          notification.timer.cancel()
+        context = self.map.pop(id, None)
+        if context is not None:
+          removed = True
+          ctx = self.get_context(context)
+          if id in ctx.notifications:
+            notification = ctx.notifications[id]
+            if notification.timer is not None:
+              notification.timer.cancel()
+          DataManager._recursive_remove_notification(self.tree, [*context, id], i=0)
       else:
-        for leaf in self.get_context(context).notifications[id].leafs():
-          if self.last and leaf.id == self.last.id:
-            self.last = None
-          if leaf.timer is not None:
-            leaf.timer.cancel()
-          self.map.pop(leaf.id)
+        ctx = self.get_context(context)
+        if id in ctx.notifications:
+          removed = True
+          for leaf in ctx.notifications[id].leafs():
+            if self.last and leaf.id == self.last.id:
+              self.last = None
+            if leaf.timer is not None:
+              leaf.timer.cancel()
+            self.map.pop(leaf.id, None)
 
-      DataManager._recursive_remove_notification(self.tree, [*context, id], i=0)
+          DataManager._recursive_remove_notification(self.tree, [*context, id], i=0)
+
+    if removed and dump and not self._loading:
+      self.dump(force_sync=False)
+
+    return removed
 
   def get_context_by_id(self, id):
     return self.get_context(self.map[id])
@@ -141,21 +186,43 @@ class DataManager:
 
     return p
 
-  def dump(self):
-    def _dump():
-      try:
-        with open(self.dump_path, "w") as f:
-          json.dump(
-            [notification.to_dict() for notification in self.tree.leafs()],
-            f,
-            indent=4,
-          )
-      except Exception as e:
-        logger.error(f"Failed to dump notifications: {e}")
+  def dump(self, force_sync=True, fsync=False):
+    if not self.dump_path or self.dump_path in ("/dev/null", os.devnull):
+      return
 
-    threading.Thread(target=_dump, daemon=True).start()
+    with self.lock:
+      data = [notification.to_dict() for notification in self.tree.leafs()]
+
+    tmp_path = None
+    try:
+      dump_dir = os.path.dirname(os.path.abspath(self.dump_path))
+      os.makedirs(dump_dir, exist_ok=True)
+
+      with tempfile.NamedTemporaryFile(
+        mode="w",
+        dir=dump_dir,
+        prefix=".dump_",
+        suffix=".tmp",
+        delete=False,
+      ) as f:
+        tmp_path = f.name
+        json.dump(data, f, indent=4)
+        f.flush()
+        if fsync:
+          os.fsync(f.fileno())
+
+      os.replace(tmp_path, self.dump_path)
+    except Exception as e:
+      logger.error(f"Failed to dump notifications: {e}")
+      if tmp_path and os.path.exists(tmp_path):
+        try:
+          os.remove(tmp_path)
+        except OSError:
+          pass
 
   def cancel_timers(self):
-    for notification in self.tree.leafs():
+    with self.lock:
+      leafs = list(self.tree.leafs())
+    for notification in leafs:
       if notification.timer is not None:
         notification.timer.cancel()

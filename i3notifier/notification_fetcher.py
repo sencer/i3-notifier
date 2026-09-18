@@ -102,14 +102,12 @@ INTROSPECTION_XML = """
 
 
 class NotificationFetcher:
-  def __init__(self, dm, gui):
+  def __init__(self, dm, gui, loop=None):
     self.dm = dm
     self.gui = gui
+    self.loop = loop
     self.context = []
-    self._id = 1
-
-    if len(self.dm.tree):
-      self._id = self.dm.tree.best.id + 1
+    self._id = max(self.dm.map.keys(), default=0) + 1
 
     self.node_info = Gio.DBusNodeInfo.new_for_xml(INTROSPECTION_XML)
     self.connection = Gio.bus_get_sync(Gio.BusType.SESSION, None)
@@ -125,6 +123,24 @@ class NotificationFetcher:
     Gio.bus_own_name_on_connection(
       self.connection, BUS_NAME, Gio.BusNameOwnerFlags.NONE, None, None
     )
+
+    # Schedule expiration timers for restored notifications
+    now = time.time_ns()
+    with self.dm.lock:
+      leafs = list(self.dm.tree.leafs())
+
+    for n in leafs:
+      if n.expires and n.expires_at is not None:
+        delay = (n.expires_at - now) / 1000000000
+        if delay > 0:
+          n.timer = threading.Timer(
+            delay,
+            self._remove_notification,
+            (n.id, RemoveReason.EXPIRED),
+          )
+          n.timer.start()
+        else:
+          self._remove_notification(n.id, RemoveReason.EXPIRED)
 
   def handle_method_call(
     self,
@@ -210,6 +226,8 @@ class NotificationFetcher:
     if replaces_id > 0:
       id = replaces_id
     else:
+      while self._id in self.dm.map:
+        self._id += 1
       id = self._id
       self._id += 1
 
@@ -275,7 +293,7 @@ class NotificationFetcher:
       logger.info(f"Didn't delete notification {id}.")
 
   def DumpNotifications(self):
-    self.dm.dump()
+    self.dm.dump(force_sync=True, fsync=True)
     return str(self.dm.tree)
 
   def ShowNotificationCount(self):
@@ -291,11 +309,13 @@ class NotificationFetcher:
 
   def Quit(self):
     logger.info("Quit requested via DBus.")
-    self.dm.dump()
+    self.dm.dump(force_sync=True, fsync=True)
     self.dm.cancel_timers()
-    import sys
-
-    sys.exit(0)
+    if self.loop is not None and self.loop.is_running():
+      self.loop.quit()
+    else:
+      import sys
+      sys.exit(0)
 
   # Signals
 

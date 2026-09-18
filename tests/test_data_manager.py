@@ -1,4 +1,9 @@
+import json
+import os
+import tempfile
+import time
 import unittest
+from unittest.mock import MagicMock, patch
 
 from i3notifier.config import Config
 from i3notifier.data_manager import DataManager
@@ -129,8 +134,141 @@ class TestDataManager(unittest.TestCase):
     )
 
 
-if __name__ == "__main__":
-  unittest.main()
+class TestPersistence(unittest.TestCase):
+  def setUp(self):
+    import tempfile
+    self.temp_dir = tempfile.TemporaryDirectory()
+    self.dump_path = os.path.join(self.temp_dir.name, "dump")
+
+  def tearDown(self):
+    self.temp_dir.cleanup()
+
+  def test_dump_null_path(self):
+    dm = DataManager([DummyConfig], "/dev/null")
+    n = Notification(1, "A", "icon", "s", "b", ["d"], 1000)
+    dm.add_notification(n)
+    dm.remove_notification(1)
+    dm.dump()
+    self.assertEqual(len(dm.tree), 0)
+
+  def test_dump_and_reload_atomic(self):
+    dm1 = DataManager([DummyConfig], self.dump_path)
+    n1 = Notification(1, "App1", "icon", "s1", "b1", ["d"], 1000)
+    n2 = Notification(2, "App2", "icon", "s2", "b2", ["d"], 2000)
+    dm1.add_notification(n1)
+    dm1.add_notification(n2)
+
+    self.assertTrue(os.path.exists(self.dump_path))
+    tmp_files = [f for f in os.listdir(self.temp_dir.name) if f.endswith(".tmp")]
+    self.assertEqual(len(tmp_files), 0)
+
+    dm2 = DataManager([DummyConfig], self.dump_path)
+    self.assertEqual(len(dm2.tree), 2)
+    self.assertIn(1, dm2.map)
+    self.assertIn(2, dm2.map)
+
+  def test_remove_persists_immediately(self):
+    dm = DataManager([DummyConfig], self.dump_path)
+    n = Notification(1, "App", "icon", "s", "b", ["d"], 1000)
+    dm.add_notification(n)
+
+    with open(self.dump_path, "r") as f:
+      data = json.load(f)
+    self.assertEqual(len(data), 1)
+
+    dm.remove_notification(1)
+
+    with open(self.dump_path, "r") as f:
+      data = json.load(f)
+    self.assertEqual(len(data), 0)
+
+  def test_expired_notifications_filtered_on_load(self):
+    import time
+    now = time.time_ns()
+    n_expired = Notification(
+      1, "App", "icon", "s1", "b1", ["d"], now - 20_000_000_000,
+      expires_at=now - 10_000_000_000, expires=True
+    )
+    n_future = Notification(
+      2, "App", "icon", "s2", "b2", ["d"], now,
+      expires_at=now + 10_000_000_000, expires=True
+    )
+    n_persistent = Notification(
+      3, "App", "icon", "s3", "b3", ["d"], now,
+      expires_at=None, expires=False
+    )
+
+    with open(self.dump_path, "w") as f:
+      import json
+      json.dump([n_expired.to_dict(), n_future.to_dict(), n_persistent.to_dict()], f)
+
+    dm = DataManager([DummyConfig], self.dump_path)
+    self.assertNotIn(1, dm.map)
+    self.assertIn(2, dm.map)
+    self.assertIn(3, dm.map)
+    self.assertEqual(len(dm.tree), 2)
+
+
+class TestNotificationFetcher(unittest.TestCase):
+  @patch("i3notifier.notification_fetcher.Gio")
+  def test_fetcher_id_and_timer_restoration(self, mock_gio):
+    from unittest.mock import MagicMock
+    from i3notifier.notification_fetcher import NotificationFetcher
+
+    class ExpConfig(Config):
+      expires = True
+
+    now = time.time_ns()
+    n1 = Notification(10, "A", "i", "s", "b", [], now, expires_at=now + 5_000_000_000, expires=True)
+    n2 = Notification(3, "A", "i", "s", "b", [], now, expires_at=None, expires=False)
+    dm = DataManager([ExpConfig], "/dev/null")
+    dm.add_notification(n1)
+    dm.add_notification(n2)
+
+    fetcher = NotificationFetcher(dm, MagicMock())
+    self.assertEqual(fetcher._id, 11)
+    self.assertIsNotNone(n1.timer)
+    dm.cancel_timers()
+
+  @patch("i3notifier.notification_fetcher.Gio")
+  def test_id_collision_skip(self, mock_gio):
+    from unittest.mock import MagicMock
+    from i3notifier.notification_fetcher import NotificationFetcher
+
+    dm = DataManager([DummyConfig], "/dev/null")
+    fetcher = NotificationFetcher(dm, MagicMock())
+    self.assertEqual(fetcher._id, 1)
+
+    # Simulate an app inserting an ID ahead of sequence (replaces_id)
+    n_custom = Notification(1, "A", "i", "s", "b", [], time.time_ns())
+    dm.add_notification(n_custom)
+
+    # Next Notify without replaces_id should skip 1 and take 2
+    fetcher.connection = MagicMock()
+    assigned_id = fetcher.Notify("A", 0, "i", "s", "b", [], {}, -1)
+    self.assertEqual(assigned_id, 2)
+    self.assertIn(1, dm.map)
+    self.assertIn(2, dm.map)
+
+  @patch("i3notifier.notification_fetcher.Gio")
+  def test_fetcher_immediate_expiration_on_startup(self, mock_gio):
+    from unittest.mock import MagicMock
+    from i3notifier.notification_fetcher import NotificationFetcher
+
+    class ExpConfig(Config):
+      expires = True
+
+    now = time.time_ns()
+    # Notification that expires immediately on startup (delay <= 0)
+    n = Notification(5, "A", "i", "s", "b", [], now, expires_at=now - 1_000_000, expires=True)
+    dm = DataManager([ExpConfig], "/dev/null")
+    dm.map[5] = ("A", "b")
+    DataManager._recursive_add_notification(dm.tree, n, ["A", "b", 5])
+
+    fetcher = NotificationFetcher(dm, MagicMock())
+    # Should not crash with AttributeError and should remove expired notification
+    self.assertNotIn(5, dm.map)
+    self.assertEqual(len(dm.tree), 0)
 
 
 if __name__ == "__main__":
