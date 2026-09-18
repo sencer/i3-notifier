@@ -45,8 +45,6 @@ def run_daemon(config_path=None, nodaemon=False):
   loop = GLib.MainLoop()
   _exiting = False
 
-  fetcher = None
-
   def dump_and_exit(signum=None, frame=None):
     nonlocal _exiting
     if _exiting:
@@ -57,8 +55,6 @@ def run_daemon(config_path=None, nodaemon=False):
     logger.info("Shutdown signal received, dumping notifications...")
     data_manager.dump(force_sync=True, fsync=True)
     data_manager.cancel_timers()
-    if fetcher:
-      fetcher.close()
     if loop.is_running():
       loop.quit()
     else:
@@ -77,8 +73,7 @@ def run_daemon(config_path=None, nodaemon=False):
       logger.info("i3-notifier is not running, but a lock file exists. Cleaning up.")
 
   def run():
-    nonlocal fetcher
-    fetcher = NotificationFetcher(data_manager, gui, loop=loop)
+    NotificationFetcher(data_manager, gui, loop=loop)
 
     logger.info("Starting i3-notifier.")
     try:
@@ -88,8 +83,6 @@ def run_daemon(config_path=None, nodaemon=False):
       data_manager.dump(force_sync=True, fsync=True)
       data_manager.cancel_timers()
     finally:
-      if fetcher:
-        fetcher.close()
       if os.path.exists(pid_file):
         os.remove(pid_file)
 
